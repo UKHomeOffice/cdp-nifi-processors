@@ -1,0 +1,3 @@
+uk.gov.homeoffice.nifi.processors.pontusElasticIdGenerator
+uk.gov.homeoffice.nifi.processors.pontusElasticIdGeneratorBulk
+uk.gov.homeoffice.nifi.processors.pontusAssociationGenerator

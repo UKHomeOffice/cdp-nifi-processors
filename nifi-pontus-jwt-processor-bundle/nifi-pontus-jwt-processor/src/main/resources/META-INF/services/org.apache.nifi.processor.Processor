@@ -1,0 +1,6 @@
+uk.gov.homeoffice.nifi.processors.JWTCreatorProcessor
+uk.gov.homeoffice.nifi.processors.JWTDecoderProcessor
+uk.gov.homeoffice.nifi.processors.SecurityHashProcessor
+uk.gov.homeoffice.nifi.processors.JWTStoreClientProcessor
+uk.gov.homeoffice.nifi.processors.SecurityCreateADUserProcessor
+

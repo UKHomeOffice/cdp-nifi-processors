@@ -1,0 +1,17 @@
+.idea/*
+nifi-pontus-hbase-processor-bundle/nifi-pontus-hbase-processor-nar/target/
+nifi-pontus-hbase-processor-bundle/nifi-pontus-hbase-processor/target/
+pluggable-ingestion-pipeline.iml
+nifi-pontus-elastic-2.x-processor-bundle/nifi-pontus-elastic-2.x-processor-nar/target
+nifi-pontus-elastic-2.x-processor-bundle/nifi-pontus-elastic-2.x-processor/target
+nifi-pontus-services/nifi-pontus-service-api/nifi-pontus-service-api.iml
+nifi-pontus-services/nifi-pontus-service-api/target
+nifi-pontus-services/nifi-pontus-service-nar/target
+nifi-pontus-services/nifi-pontus-services.iml
+nifi-pontus-services/nifi-pontus-service-nar/nifi-pontus-service-nar.iml
+nifi-pontus-services/nifi-pontus-service/target
+nifi-pontus-services/nifi-pontus-service-api-nar/target
+*/*/target/*
+*/*/*.iml
+nifi-pontus-elastic-2.x-processor-bundle/nifi-pontus-elastic-2.x-processor/dependency-reduced-pom.xml
+
