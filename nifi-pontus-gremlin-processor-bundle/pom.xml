@@ -17,7 +17,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.apache.nifi</groupId>
-    <artifactId>nifi-pontus-elastic-2.x-processor-bundle</artifactId>
+    <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
     <version>1.0</version>
     <packaging>pom</packaging>
 
@@ -25,16 +25,17 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.min-version>3.0.5</maven.min-version>
-        <nifi.version>1.2.0</nifi.version>
-        <slf4j.version>1.7.12</slf4j.version>
+        <janusgraph.version>100.2.0-SNAPSHOT</janusgraph.version>
+        <nifi.version>1.4.0</nifi.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <gremlin-version>3.3.0</gremlin-version>
+        <json-path-version>2.0.0</json-path-version>
         <java-uuid-generator.version>3.1.4</java-uuid-generator.version>
-        <es.version>2.4.3</es.version>
     </properties>
 
     <modules>
-        <module>nifi-pontus-elastic-2.x-processor</module>
-        <module>nifi-pontus-elastic-2.x-processor-nar</module>
-        <module>nifi-elasticsearch-processors</module>
+        <module>nifi-pontus-gremlin-processor</module>
+        <module>nifi-pontus-gremlin-processor-nar</module>
     </modules>
 
     <build>
@@ -56,6 +57,24 @@
                     <showWarnings>true</showWarnings>
                 </configuration>
             </plugin>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>1.3.1</version>
+                <executions>
+                    <execution>
+                        <id>enforce-dependency-convergence</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <DependencyConvergence/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 

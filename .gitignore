@@ -13,5 +13,8 @@ nifi-pontus-services/nifi-pontus-service/target
 nifi-pontus-services/nifi-pontus-service-api-nar/target
 */*/target/*
 */*/*.iml
+*.iml
+*/*.iml
+*/*/*/*.iml
 nifi-pontus-elastic-2.x-processor-bundle/nifi-pontus-elastic-2.x-processor/dependency-reduced-pom.xml
 

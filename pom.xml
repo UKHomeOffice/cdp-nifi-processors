@@ -10,12 +10,13 @@
 
     <packaging>pom</packaging>
     <modules>
-        <module>elastic-2.x-shield-kerberos-realm</module>
-        <module>nifi-pontus-hbase-processor-bundle</module>
-        <module>nifi-pontus-elastic-2.x-processor-bundle</module>
+        <!--<module>elastic-2.x-shield-kerberos-realm</module>-->
+        <!--<module>nifi-pontus-hbase-processor-bundle</module>-->
+        <!--<module>nifi-pontus-elastic-2.x-processor-bundle</module>-->
         <module>nifi-pontus-services</module>
         <module>nifi-pontus-jwt-processor-bundle</module>
 
+        <module>nifi-pontus-gremlin-processor-bundle</module>
     </modules>
 
 

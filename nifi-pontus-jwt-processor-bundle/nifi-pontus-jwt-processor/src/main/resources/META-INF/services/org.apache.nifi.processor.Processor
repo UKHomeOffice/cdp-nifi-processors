@@ -1,6 +1,6 @@
-uk.gov.homeoffice.nifi.processors.JWTCreatorProcessor
-uk.gov.homeoffice.nifi.processors.JWTDecoderProcessor
-uk.gov.homeoffice.nifi.processors.SecurityHashProcessor
-uk.gov.homeoffice.nifi.processors.JWTStoreClientProcessor
-uk.gov.homeoffice.nifi.processors.SecurityCreateADUserProcessor
+com.pontusvision.nifi.processors.JWTCreatorProcessor
+com.pontusvision.nifi.processors.JWTDecoderProcessor
+com.pontusvision.nifi.processors.SecurityHashProcessor
+com.pontusvision.nifi.processors.JWTStoreClientProcessor
+com.pontusvision.nifi.processors.SecurityCreateADUserProcessor
 

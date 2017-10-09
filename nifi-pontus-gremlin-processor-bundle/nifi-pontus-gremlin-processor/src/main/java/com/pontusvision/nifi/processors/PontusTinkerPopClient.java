@@ -1,0 +1,371 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package com.pontusvision.nifi.processors;
+
+import com.google.common.base.CharMatcher;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.DefaultConfigurationBuilder;
+import org.apache.nifi.annotation.behavior.*;
+import org.apache.nifi.annotation.documentation.CapabilityDescription;
+import org.apache.nifi.annotation.documentation.Tags;
+import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.PropertyValue;
+import org.apache.nifi.components.ValidationResult;
+import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.logging.ComponentLog;
+import org.apache.nifi.processor.AbstractProcessor;
+import org.apache.nifi.processor.ProcessContext;
+import org.apache.nifi.processor.ProcessSession;
+import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.processor.exception.ProcessException;
+import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.util.StringUtils;
+import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.stream.Collectors;
+
+//import com.google.common.base.CharMatcher;
+//import org.apache.nifi.hbase.HBaseClientService;
+//import org.apache.nifi.hbase.put.PutColumn;
+//import org.apache.nifi.hbase.scan.Column;
+//import org.apache.nifi.hbase.scan.ResultCell;
+//import org.apache.nifi.hbase.scan.ResultHandler;
+//import org.apache.tinkerpop.gremlin.driver.Settings;
+//import org.apache.tinkerpop.gremlin.driver.message.RequestMessage;
+//import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+
+/**
+ * @author Leo Martins
+ */
+
+@TriggerSerially
+@InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
+
+@WritesAttributes({
+        @WritesAttribute(attribute = "reqUUID", description = "UUID from the query"),
+        @WritesAttribute(attribute = "pontus.id.type", description = "The type of UUID (NEW, EXISTING)"),
+        @WritesAttribute(attribute = "pontus.match.status", description = "The status associated with the record " +
+                "(MATCH, POTENTIAL_MATCH, MULTIPLE, MERGE, NO_MATCH) ")
+})
+
+@Tags({"pontus", "TINKERPOP", "GREMLIN"})
+@CapabilityDescription("Reads data from attributes, and puts it into a TinkerPop Gremlin Server using a given query.  "
+        + "Each of the schema fields is passed as a variable to the tinkerpop query string.  "
+        + "As an example, if the server has a graph created as g1, then we can create an alias pointing \"g1\" to \"g\" by "
+        + "using the alias option."
+        + "Then, the tinkerpop query looks like this:\n"
+        + "'v1 = g.addV(\"person\").property(id, tp_userID1).property(\"name\", tp_userName1).property(\"age\", tp_userAge1).next()\n"
+        + "v2 = g.addV(\"software\").property(id, tp_userID2).property(\"name\", tp_userName2).property(\"lang\", tp_userLang2).next()\n"
+        + "g.addE(\"created\").from(v1).to(v2).property(id, tp_relId1).property(\"weight\", tp_relWeight1)\n', then the "
+        + "variables tp_userID1, tp_userName1, tp_userID2, tp_userName2, tp_userLang2, tp_relId1, tp_relWeight1 would all be taken from the "
+        + "flowfile attributes that start with the prefix set in the tinkerpop query parameter prefix (e.g. tp_).")
+
+public class PontusTinkerPopClient extends AbstractProcessor {
+
+
+    final PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
+            .name("Tinkerpop Client configuration URI")
+            .description("Specifies the configuration file to configure this connection to tinkerpop.")
+            .required(false)
+            .addValidator(StandardValidators.URI_VALIDATOR)
+//            .identifiesControllerService(HBaseClientService.class)
+            .build();
+
+
+    final PropertyDescriptor TINKERPOP_QUERY_PARAM_PREFIX = new PropertyDescriptor.Builder()
+            .name("Tinkerpop query parameter prefix")
+            .description("Any flowfile attributes with this prefix will be sent to tinkerpop (with the prefix included)." +
+                    "  NOTE: This is ignored when using the Record-based client.")
+            .required(false)
+            .defaultValue("tp_")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+//            .identifiesControllerService(HBaseClientService.class)
+            .build();
+
+
+    final PropertyDescriptor TINKERPOP_ALIAS = new PropertyDescriptor.Builder()
+            .name("Tinkerpop graph alias")
+            .description("This will create an alias of g to any pre-configured graph in the server.")
+            .required(true)
+            .defaultValue("g1")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+//            .identifiesControllerService(HBaseClientService.class)
+            .build();
+
+
+//    static final Pattern COLUMNS_PATTERN = Pattern.compile("\\w+(:\\w+)?(?:,\\w+(:\\w+)?)*");
+
+
+//    static final PropertyDescriptor COLUMNS = new PropertyDescriptor.Builder()
+//            .name("Columns")
+//            .description("A comma-separated list of \"<colFamily>:<colQualifier>\" pairs to return when scanning. To return all columns " +
+//                    "for a given family, leave off the qualifier such as \"<colFamily1>,<colFamily2>\".")
+//            .required(false)
+//            .expressionLanguageSupported(false)
+//            .addValidator(StandardValidators.createRegexMatchingValidator(COLUMNS_PATTERN))
+//            .build();
+
+    final PropertyDescriptor TINKERPOP_QUERY_STR = new PropertyDescriptor.Builder()
+            .name("Tinkerpop Query")
+            .description("A Tinkerpop 3.3.0 query.  ")
+            .required(true)
+            .expressionLanguageSupported(false)
+            .defaultValue("v1 = g.addV(\"person\").property(id, userID1).property(\"name\", userName1).property(\"age\", userAge1).next()\n"
+                    + "v2 = g.addV(\"software\").property(id, userID2).property(\"name\", userName2).property(\"lang\", userLang2).next()\n"
+                    + "g.addE(\"created\").from(v1).to(v2).property(id, relId1).property(\"weight\", relWeight1)\n")
+            .addValidator((subject, input, context) -> {
+                boolean isAscii = CharMatcher.ASCII.matchesAllOf(input);
+                ValidationResult.Builder builder = new ValidationResult.Builder();
+
+                builder.valid(isAscii);
+                builder.input(input);
+                builder.subject(subject);
+
+                if (!isAscii) {
+                    builder.explanation("Found non-ascii characters in the string; perhaps you copied and pasted from a word doc or web site?");
+                }
+
+
+                ValidationResult res = builder.build();
+
+
+                return res;
+            })
+            .build();
+
+
+    final Relationship REL_SUCCESS = new Relationship.Builder()
+            .name("success")
+            .description("FlowFiles are routed to this relationship if the query was successful")
+            .build();
+
+    final Relationship REL_FAILURE = new Relationship.Builder()
+            .name("failure")
+            .description("FlowFiles are routed to this relationship if the query was unsuccessful")
+            .build();
+
+
+//    private Pattern colonSplitPattern = Pattern.compile(":");
+
+
+    String confFileURI = null;
+    Configuration conf = null;
+
+
+    String queryStr = null;
+    String queryAttribPrefixStr = "tp_";
+    String aliasStr = "g1";
+    Client client = null;
+    Cluster cluster = null;
+    Set<Relationship> relationships = new HashSet<>();
+
+    public PontusTinkerPopClient() {
+        relationships.add(REL_FAILURE);
+        relationships.add(REL_SUCCESS);
+
+    }
+
+    //     new HashSet<>();
+    @Override
+    public Set<Relationship> getRelationships() {
+        return relationships;
+    }
+
+
+//    @Override
+//    protected Collection<ValidationResult> customValidate(ValidationContext validationContext) {
+////        final String columns = validationContext.getProperty(COLUMNS).getValue();
+//
+//        final List<ValidationResult> problems = new ArrayList<>();
+//
+////        if (StringUtils.isBlank(columns)) {
+////            problems.add(new ValidationResult.Builder()
+////                    .valid(false)
+////                    .explanation("a filter expression can not be used in conjunction with the Columns property")
+////                    .build());
+////        }
+//
+//
+//
+//        return problems;
+//    }
+
+
+    @Override
+    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        final List<PropertyDescriptor> properties = new ArrayList<>();
+        properties.add(TINKERPOP_CLIENT_CONF_FILE_URI);
+        properties.add(TINKERPOP_QUERY_STR);
+        properties.add(TINKERPOP_ALIAS);
+
+        properties.add(TINKERPOP_QUERY_PARAM_PREFIX);
+        return properties;
+    }
+
+    @Override
+    public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue, final String newValue) {
+        if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI)) {
+            confFileURI = null;
+        } else if (descriptor.equals(TINKERPOP_QUERY_STR)) {
+            queryStr = null;
+        } else if (descriptor.equals(TINKERPOP_QUERY_PARAM_PREFIX)) {
+            queryAttribPrefixStr = newValue;
+        } else if (descriptor.equals(TINKERPOP_ALIAS)) {
+            aliasStr = null;
+        }
+
+    }
+
+    public void setDefaultConfigs() throws ConfigurationException {
+        DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
+
+        conf = confBuilder.getConfiguration(false);
+        conf.setProperty("port", 8182);
+        conf.setProperty("nioPoolSize", 1);
+        conf.setProperty("workerPoolSize", 1);
+//                    conf.setProperty("username", "root");
+//                    conf.setProperty("password", "pa55word");
+//                    conf.setProperty("jaasEntry", "tinkerpop");
+//                    conf.setProperty("protocol", "GSSAPI");
+        conf.setProperty("hosts", "127.0.0.1");
+        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV1d0");
+        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV1d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistryV1d0] , useMapperFromGraph: graph}");
+
+//        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
+//        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+
+        //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
+//        conf.setProperty("connectionPool.enableSsl", false);
+//        conf.setProperty("connectionPool.trustCertChainFile", "");
+        conf.setProperty("connectionPool.minSize", 1);
+        conf.setProperty("connectionPool.maxSize", 1);
+        conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
+        conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+        conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
+        conf.setProperty("connectionPool.minInProcessPerConnection", 1);
+        conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+//        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
+//        conf.setProperty("connectionPool.maxContentLength", 200000);
+//        conf.setProperty("connectionPool.reconnectInterval", 2000);
+//        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
+//        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+    }
+
+    @OnScheduled
+    public void parseProps(final ProcessContext context) throws IOException {
+
+        final ComponentLog log = this.getLogger();
+
+        if (queryStr == null) {
+            queryStr = context.getProperty(TINKERPOP_QUERY_STR).getValue();
+        }
+        if (aliasStr == null) {
+            aliasStr = context.getProperty(TINKERPOP_ALIAS).getValue();
+        }
+        if (confFileURI == null) {
+            PropertyValue confFileURIProp = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI);
+            confFileURI = confFileURIProp.getValue();
+
+            if (StringUtils.isEmpty(confFileURI)) {
+                try {
+                    setDefaultConfigs();
+                } catch (Exception e2) {
+                    log.error("Failed set Default URL config", e2);
+
+                    return;
+                }
+
+            } else {
+                try {
+
+                    URI uri = new URI(confFileURI);
+                    DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
+                    conf = confBuilder.getConfiguration(true);
+                } catch (Exception e) {
+                    log.warn("Failed to read URL config; using default values", e);
+
+
+                    try {
+                        setDefaultConfigs();
+                    } catch (Exception e2) {
+                        log.error("Failed set Default URL config", e2);
+
+                        return;
+                    }
+
+                }
+            }
+            if (client != null) {
+                client.close();
+            }
+            if (cluster != null) {
+                cluster.close();
+            }
+
+            cluster = Cluster.open(conf);
+
+            Client unaliasedClient = cluster.connect();
+
+            client = unaliasedClient; //.alias(aliasStr);
+
+
+        }
+
+
+    }
+
+
+    @Override
+    public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
+
+        final ComponentLog log = this.getLogger();
+        FlowFile localFlowFile = null;
+
+        try {
+            final FlowFile flowfile = session.get();
+            if (flowfile == null) {
+                log.error("Got a NULL flow file");
+            }
+            localFlowFile = flowfile;
+            Map<String, String> allAttribs = flowfile.getAttributes();
+
+            Map<String, Object> tinkerpopAttribs = allAttribs.entrySet()
+                    .stream()
+                    .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            ResultSet res = client.submit(queryStr, tinkerpopAttribs);
+
+            final Map<String, String> attributes = new HashMap<>();
+
+            UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
+
+            attributes.put("reqUUID", reqUUID.toString());
+            localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+            session.transfer(localFlowFile, REL_SUCCESS);
+
+            return;
+
+
+        } catch (Exception e) {
+            log.error("Failed to run query against Tinkerpop; error: {}", e);
+        }
+
+        if (localFlowFile != null) {
+            session.transfer(localFlowFile, REL_FAILURE);
+        }
+
+    }
+
+}
