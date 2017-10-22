@@ -25,18 +25,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 //import java.util.*;
-@TriggerSerially
-@SupportsBatching
-@InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
+@TriggerSerially @SupportsBatching @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 //@SideEffectFree
-@Tags({"GDPR", "record", "Write", "schema", "tinkerpop", "gremlin", "json", "csv", "avro", "log", "logs", "freeform", "text"})
-@WritesAttributes({
-        @WritesAttribute(attribute = "processed.record.count", description = "The number of records processed"),
-        @WritesAttribute(attribute = "requested.record.count", description = "The number of records processed")
-})
-@CapabilityDescription("Reads data from a Record Reader Controller Service, and puts it into a TinkerPop Gremlin Server using a given query.  "
+@Tags({ "GDPR", "record", "Write", "schema", "tinkerpop", "gremlin", "json", "csv", "avro", "log", "logs", "freeform",
+    "text" }) @WritesAttributes({
+    @WritesAttribute(attribute = "processed.record.count", description = "The number of records processed"),
+    @WritesAttribute(attribute = "requested.record.count", description = "The number of records processed") }) @CapabilityDescription(
+    "Reads data from a Record Reader Controller Service, and puts it into a TinkerPop Gremlin Server using a given query.  "
         + "Each of the schema fields is passed as a variable to the tinkerpop query string.  "
         + "As an example, if the server has a graph created as g1, then we can create an alias pointing \"g1\" to \"g\" by using the alias option."
         + "Then, the tinkerpop query looks like this:\n"
@@ -46,104 +44,148 @@ import java.util.concurrent.atomic.AtomicInteger;
         + "variables userID1, userName1, userID2, userName2, userLang2, relId1, relWeight1 would all be taken from the Record Reader's "
         + "schema for each record.")
 
+public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
+{
+  static final PropertyDescriptor RECORD_READER = new PropertyDescriptor.Builder().name("record-reader")
+      .displayName("Record Reader").description("Specifies the Controller Service to use for reading incoming data")
+      .identifiesControllerService(RecordReaderFactory.class).required(true).build();
 
-public class PontusTinkerPopClientRecord extends PontusTinkerPopClient {
-    static final PropertyDescriptor RECORD_READER = new PropertyDescriptor.Builder()
-            .name("record-reader")
-            .displayName("Record Reader")
-            .description("Specifies the Controller Service to use for reading incoming data")
-            .identifiesControllerService(RecordReaderFactory.class)
-            .required(true)
-            .build();
+  @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
+  {
+    final List<PropertyDescriptor> properties = new ArrayList<>(super.getSupportedPropertyDescriptors());
+    properties.add(RECORD_READER);
+    //        properties.remove( TINKERPOP_QUERY_PARAM_PREFIX);
 
-    @Override
-    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        final List<PropertyDescriptor> properties = new ArrayList<>(super.getSupportedPropertyDescriptors());
-        properties.add(RECORD_READER);
-//        properties.remove( TINKERPOP_QUERY_PARAM_PREFIX);
+    return properties;
+  }
 
-        return properties;
+  protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context )
+    {
+      getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
+      session.transfer(flowFile, REL_FAILURE);
+
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException)
+      {
+        try
+        {
+          if (cause.getCause() instanceof TimeoutException )
+          {
+            parseProps(context);
+          }
+          else if (cause.getCause() instanceof RuntimeException){
+            cause = cause.getCause();
+            if (cause.getCause() instanceof TimeoutException )
+            {
+              parseProps(context);
+            }
+
+          }
+        }
+        catch (Throwable t)
+        {
+          getLogger().error("Failed to reconnect {}", new Object[] { t });
+
+        }
+      }
+      return;
     }
 
-    @Override
-    public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
-        FlowFile flowFile = session.get();
-        if (flowFile == null) {
-            return;
-        }
 
-        final RecordReaderFactory readerFactory = context.getProperty(RECORD_READER).asControllerService(RecordReaderFactory.class);
+  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  {
+    FlowFile flowFile = session.get();
+    if (flowFile == null)
+    {
+      return;
+    }
 
-        final Map<String, String> attributes = new HashMap<>();
-        final AtomicInteger recordCount = new AtomicInteger();
+    final RecordReaderFactory readerFactory = context.getProperty(RECORD_READER)
+        .asControllerService(RecordReaderFactory.class);
 
-        final List<String> reqUUIDs = new LinkedList<>();
+    final Map<String, String> attributes = new HashMap<>();
+    final AtomicInteger recordCount = new AtomicInteger();
 
-        final FlowFile original = flowFile;
-        final Map<String, String> originalAttributes = flowFile.getAttributes();
-        attributes.putAll(originalAttributes);
-
-
-        try {
-            final FlowFile tempFlowFile = flowFile;
-
-            flowFile = session.write(flowFile, new StreamCallback() {
-                @Override
-                public void process(final InputStream in, final OutputStream out) throws IOException {
-
-//                    try (final RecordReader reader = readerFactory.createRecordReader(originalAttributes, in, getLogger())) {
-                    try (final RecordReader reader = readerFactory.createRecordReader(original, in, getLogger())) {
-
-                        final RecordSchema rSchema = reader.getSchema();
-
-                        List<RecordField> fields = rSchema.getFields();
+    final List<String> reqUUIDs = new LinkedList<>();
 
 
-                        Record record;
-                        Map<String, Object> tinkerpopAttribs = new HashMap<>(fields.size());
+    Map<String, String> allAttribs = flowFile.getAttributes();
 
-                        List<CompletableFuture<ResultSet>> resSets = new LinkedList<>();
-                        int resetLen = queryAttribPrefixStr.length();
-                        StringBuilder sb = new StringBuilder(queryAttribPrefixStr);
+    final Map<String, Object> tinkerpopFlowFileAttribs = allAttribs.entrySet().stream()
+        .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                        while ((record = reader.nextRecord()) != null) {
+    final FlowFile original = flowFile;
+    final Map<String, String> originalAttributes = flowFile.getAttributes();
+    attributes.putAll(originalAttributes);
 
-                            tinkerpopAttribs.clear();
+    try
+    {
+      final FlowFile tempFlowFile = flowFile;
 
-                            for (int i = 0, ilen = fields.size(); i < ilen; i++) {
-                                RecordField recordField = fields.get(i);
+      flowFile = session.write(flowFile, new StreamCallback()
+      {
+        @Override public void process(final InputStream in, final OutputStream out) throws IOException
+        {
 
-                                String fieldName = recordField.getFieldName();
+          //                    try (final RecordReader reader = readerFactory.createRecordReader(originalAttributes, in, getLogger())) {
+          try (final RecordReader reader = readerFactory.createRecordReader(original, in, getLogger()))
+          {
 
-                                Object fieldVal = record.getValue(recordField);
-                                sb.setLength(resetLen);
-                                sb.append(fieldName);
-                                tinkerpopAttribs.put(sb.toString(), fieldVal);
-                            }
+            final RecordSchema rSchema = reader.getSchema();
 
-                            ResultSet resSet = client.submit(queryStr, tinkerpopAttribs);
-                            CompletableFuture<List<Result>> results  = resSet.all();
+            List<RecordField> fields = rSchema.getFields();
 
-                            if (results.isCompletedExceptionally()) {
-                                results.exceptionally((Throwable throwable) -> {
-                                    getLogger().error("Server Error " +
-                                            resSet.getOriginalRequestMessage().toString(), throwable);
-//                                    session.transfer(tempFlowFile, REL_FAILURE);
+            Record record;
+            Map<String, Object> tinkerpopAttribs = new HashMap<>(fields.size() + tinkerpopFlowFileAttribs.size());
 
-                                    throw new ProcessException(throwable);
-                                }).join();
+            List<CompletableFuture<ResultSet>> resSets = new LinkedList<>();
+            int resetLen = queryAttribPrefixStr.length();
+            StringBuilder sb = new StringBuilder(queryAttribPrefixStr);
 
-                            }
-                            reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
+            while ((record = reader.nextRecord()) != null)
+            {
 
+              tinkerpopAttribs.clear();
 
-//                            CompletableFuture<ResultSet> res = client.submitAsync(queryStr, tinkerpopAttribs);
-//                            resSets.add(res);
+              for (int i = 0, ilen = fields.size(); i < ilen; i++)
+              {
+                RecordField recordField = fields.get(i);
 
-                            recordCount.incrementAndGet();
+                String fieldName = recordField.getFieldName();
 
+                Object fieldVal = record.getValue(recordField);
+                sb.setLength(resetLen);
+                sb.append(fieldName);
+                tinkerpopAttribs.put(sb.toString(), fieldVal);
+              }
 
-                        }
+              // enables us to override any...
+              tinkerpopAttribs.putAll(tinkerpopFlowFileAttribs);
+
+              ResultSet resSet = client.submit(queryStr, tinkerpopAttribs);
+              CompletableFuture<List<Result>> results = resSet.all();
+
+              if (results.isCompletedExceptionally())
+              {
+                results.exceptionally((Throwable throwable) -> {
+                  getLogger().error("Server Error " + throwable.getMessage() + " orig msg: "+ resSet.getOriginalRequestMessage().toString());
+                  //                                    session.transfer(tempFlowFile, REL_FAILURE);
+
+                  throw new ProcessException(throwable);
+                }).join();
+
+              }
+              List<Result> allRes = resSet.all().get();
+
+              reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
+
+              //                            CompletableFuture<ResultSet> res = client.submitAsync(queryStr, tinkerpopAttribs);
+              //                            resSets.add(res);
+
+              recordCount.incrementAndGet();
+
+            }
 
                         /*
 
@@ -169,45 +211,37 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient {
                         }
 */
 
-//                    } catch (final SchemaNotFoundException | MalformedRecordException | InterruptedException | ExecutionException |Throwable e) {
-                    } catch (final CompletionException|ProcessException pe){
-                        throw pe;
-                    } catch (final Throwable e) {
-                        throw new ProcessException("Could not process incoming data", e);
-                    }
-                }
-            });
-            attributes.put("reqUUIDs", reqUUIDs.toString());
-            attributes.put("processed.record.count", String.valueOf(reqUUIDs.size()));
-            attributes.put("requested.record.count", String.valueOf(recordCount.get()));
-
-            FlowFile localFlowFile = original;
-            localFlowFile = session.putAllAttributes(localFlowFile, attributes);
-            session.transfer(localFlowFile, REL_SUCCESS);
-
-        } catch (final Exception e) {
-            getLogger().error("Failed to process {}; will route to failure", new Object[]{flowFile, e});
-            session.transfer(flowFile, REL_FAILURE);
-
-            Throwable cause = e.getCause();
-            if (cause instanceof RuntimeException) {
-                try {
-                    if (cause.getCause() instanceof TimeoutException) {
-                        parseProps(context);
-                    }
-                } catch (Throwable t) {
-                    getLogger().error("Failed to reconnect {}", new Object[]{t});
-
-                }
-            }
-            return;
+            //                    } catch (final SchemaNotFoundException | MalformedRecordException | InterruptedException | ExecutionException |Throwable e) {
+          }
+          catch (final CompletionException | ProcessException pe)
+          {
+            throw pe;
+          }
+          catch (final Throwable e)
+          {
+            throw new ProcessException("Could not process incoming data", e);
+          }
         }
+      });
+      attributes.put("reqUUIDs", reqUUIDs.toString());
+      attributes.put("processed.record.count", String.valueOf(reqUUIDs.size()));
+      attributes.put("requested.record.count", String.valueOf(recordCount.get()));
 
+      FlowFile localFlowFile = original;
+      localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+      session.transfer(localFlowFile, REL_SUCCESS);
 
-        final int count = recordCount.get();
-        session.adjustCounter("Records Requested", count, false);
-        session.adjustCounter("Records Processed", reqUUIDs.size(), false);
-        getLogger().info("Successfully processed {} / records for {}", new Object[]{count, flowFile});
     }
+    catch (final Exception e)
+    {
+      handleError(e,flowFile,session,context);
+      return;
+    }
+
+    final int count = recordCount.get();
+    session.adjustCounter("Records Requested", count, false);
+    session.adjustCounter("Records Processed", reqUUIDs.size(), false);
+    getLogger().info("Successfully processed {} / records for {}", new Object[] { count, flowFile });
+  }
 
 }

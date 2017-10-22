@@ -1,0 +1,3 @@
+com.pontusvision.nifi.processors.CSVToJSONProcessor
+com.pontusvision.nifi.processors.PontusTinkerPopClient
+com.pontusvision.nifi.processors.PontusTinkerPopClientRecord

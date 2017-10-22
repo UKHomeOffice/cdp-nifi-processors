@@ -22,7 +22,7 @@ public class JsonProcessorTest {
     public void testOnTrigger() throws IOException {
         // Content to be mock a json file
         InputStream header= new ByteArrayInputStream("header1,header2\n".getBytes());
-        
+//
 //        // Generate a test runner to mock a processor in a flow
 //        TestRunner runner = TestRunners.newTestRunner(new CSVToJSONProcessor());
 //
