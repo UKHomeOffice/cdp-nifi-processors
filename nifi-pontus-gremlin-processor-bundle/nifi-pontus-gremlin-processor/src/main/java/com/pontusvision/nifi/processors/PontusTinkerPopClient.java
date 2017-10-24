@@ -88,7 +88,7 @@ public class PontusTinkerPopClient extends AbstractProcessor {
             .description("Any flowfile attributes with this prefix will be sent to tinkerpop (with the prefix included)." +
                     "  NOTE: This is ignored when using the Record-based client.")
             .required(false)
-            .defaultValue("tp_")
+            .defaultValue("pg_")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
 //            .identifiesControllerService(HBaseClientService.class)
             .build();
@@ -164,7 +164,7 @@ public class PontusTinkerPopClient extends AbstractProcessor {
 
 
     String queryStr = null;
-    String queryAttribPrefixStr = "tp_";
+    String queryAttribPrefixStr = "pg_";
     String aliasStr = "g1";
     Client client = null;
     Cluster cluster = null;
@@ -256,7 +256,7 @@ public class PontusTinkerPopClient extends AbstractProcessor {
         conf.setProperty("connectionPool.minInProcessPerConnection", 1);
         conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
 //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
-//        conf.setProperty("connectionPool.maxContentLength", 200000);
+        conf.setProperty("connectionPool.maxContentLength", 2000000);
 //        conf.setProperty("connectionPool.reconnectInterval", 2000);
 //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
 //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
