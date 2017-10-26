@@ -162,6 +162,9 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
       localFlowFile = session.putAllAttributes(localFlowFile, attributes);
       session.transfer(localFlowFile, REL_SUCCESS);
 
+
+
+
     }
     catch (final Exception e)
     {

@@ -9,7 +9,10 @@ import com.google.common.base.CharMatcher;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.DefaultConfigurationBuilder;
-import org.apache.nifi.annotation.behavior.*;
+import org.apache.nifi.annotation.behavior.InputRequirement;
+import org.apache.nifi.annotation.behavior.TriggerSerially;
+import org.apache.nifi.annotation.behavior.WritesAttribute;
+import org.apache.nifi.annotation.behavior.WritesAttributes;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
@@ -27,12 +30,14 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.StringUtils;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 //import com.google.common.base.CharMatcher;
@@ -346,7 +351,24 @@ public class PontusTinkerPopClient extends AbstractProcessor {
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             ResultSet res = client.submit(queryStr, tinkerpopAttribs);
+            CompletableFuture<List<Result>> resFuture = res.all();
 
+            if (resFuture.isCompletedExceptionally())
+            {
+                resFuture.exceptionally((Throwable throwable) -> {
+                    getLogger().error(
+                        "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage()
+                            .toString());
+                    //                                    session.transfer(tempFlowFile, REL_FAILURE);
+
+                    throw new ProcessException(throwable);
+                }).join();
+
+            }
+
+            List<Result> results = resFuture.get();
+
+//          GraphSONUtility
             final Map<String, String> attributes = new HashMap<>();
 
             UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
