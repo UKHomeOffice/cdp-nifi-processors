@@ -16,12 +16,12 @@ Here are the rough procedures:
 ```
 # login as root into the sandbox
 cd /opt
-wget http://mirrors.ukfast.co.uk/sites/ftp.apache.org/nifi/1.1.1/nifi-1.1.1-bin.tar.gz
+wget http://mirrors.ukfast.co.uk/sites/ftp.apache.org/nifi/1.4.0/nifi-1.4.0-bin.tar.gz
 
-tar xvfz nifi-1.1.1-bin.tar.gz
+tar xvfz nifi-1.4.0-bin.tar.gz
 useradd nifi -G hadoop
-ln -s  nifi-1.1.1  nifi
-chown -R nifi:nifi /opt/nifi-1.1.1
+ln -s  nifi-1.4.0  nifi
+chown -R nifi:nifi /opt/nifi-1.4.0
 su - nifi
 cd /opt/nifi
 ```
