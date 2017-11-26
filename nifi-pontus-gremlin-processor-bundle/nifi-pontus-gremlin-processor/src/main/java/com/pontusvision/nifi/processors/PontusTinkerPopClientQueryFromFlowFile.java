@@ -160,23 +160,24 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
   {
 
     final ComponentLog log = this.getLogger();
-    FlowFile localFlowFile = null;
+    final FlowFile localFlowFile = session.get();
+    if (localFlowFile == null)
+    {
+      log.error("Got a NULL flow file");
+      return;
+
+    }
+
 
     try
     {
-      final FlowFile flowfile = session.get();
-      if (flowfile == null)
-      {
-        log.error("Got a NULL flow file");
-
-      }
-      Map<String, String> allAttribs = flowfile.getAttributes();
+      Map<String, String> allAttribs = localFlowFile.getAttributes();
 
       Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
           .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-      session.read(flowfile, new InputStreamCallback()
+      session.read(localFlowFile, new InputStreamCallback()
       {
         @Override public void process(InputStream in) throws IOException
         {
@@ -230,14 +231,14 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
 
             attributes.put("reqUUID", reqUUID.toString());
 
-            FlowFile localFlowFile = session.create();
-            localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+            FlowFile retFlowFile = session.create();
+            retFlowFile = session.putAllAttributes(retFlowFile, attributes);
 
-            localFlowFile = session.write(localFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
+            retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
 
-            session.remove(flowfile);
+            session.remove(localFlowFile);
 
-            session.transfer(localFlowFile, REL_SUCCESS);
+            session.transfer(retFlowFile, REL_SUCCESS);
 
             return;
 
