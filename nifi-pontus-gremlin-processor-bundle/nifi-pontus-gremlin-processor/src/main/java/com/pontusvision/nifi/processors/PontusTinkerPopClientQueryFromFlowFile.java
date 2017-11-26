@@ -16,14 +16,12 @@ import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONWriter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -45,20 +43,18 @@ import java.util.stream.Collectors;
 
 @TriggerSerially @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 
-
-
-@Tags({ "pontus", "TINKERPOP", "GREMLIN" }) @CapabilityDescription(
-    "Reads a query from a flowfile body and executes it against a TinkerPop Gremlin Server.")
+@Tags({ "pontus", "TINKERPOP",
+    "GREMLIN" }) @CapabilityDescription("Reads a query from a flowfile body and executes it against a TinkerPop Gremlin Server.")
 
 public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClient
 {
-
 
   public PontusTinkerPopClientQueryFromFlowFile()
   {
     super();
 
   }
+
   @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
     final List<PropertyDescriptor> properties = new ArrayList<>();
@@ -77,84 +73,82 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
 
   }
 
-
-
-//  @OnScheduled public void parseProps(final ProcessContext context) throws IOException
-//  {
-//
-//    final ComponentLog log = this.getLogger();
-//
-//    if (queryStr == null)
-//    {
-//      queryStr = context.getProperty(TINKERPOP_QUERY_STR).getValue();
-//    }
-//    if (aliasStr == null)
-//    {
-//      aliasStr = context.getProperty(TINKERPOP_ALIAS).getValue();
-//    }
-//    if (confFileURI == null)
-//    {
-//      PropertyValue confFileURIProp = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI);
-//      confFileURI = confFileURIProp.getValue();
-//
-//      if (StringUtils.isEmpty(confFileURI))
-//      {
-//        try
-//        {
-//          setDefaultConfigs();
-//        }
-//        catch (Exception e2)
-//        {
-//          log.error("Failed set Default URL config", e2);
-//
-//          return;
-//        }
-//
-//      }
-//      else
-//      {
-//        try
-//        {
-//
-//          URI uri = new URI(confFileURI);
-//          DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
-//          conf = confBuilder.getConfiguration(true);
-//        }
-//        catch (Exception e)
-//        {
-//          log.warn("Failed to read URL config; using default values", e);
-//
-//          try
-//          {
-//            setDefaultConfigs();
-//          }
-//          catch (Exception e2)
-//          {
-//            log.error("Failed set Default URL config", e2);
-//
-//            return;
-//          }
-//
-//        }
-//      }
-//      if (client != null)
-//      {
-//        client.close();
-//      }
-//      if (cluster != null)
-//      {
-//        cluster.close();
-//      }
-//
-//      cluster = Cluster.open(conf);
-//
-//      Client unaliasedClient = cluster.connect();
-//
-//      client = unaliasedClient; //.alias(aliasStr);
-//
-//    }
-//
-//  }
+  //  @OnScheduled public void parseProps(final ProcessContext context) throws IOException
+  //  {
+  //
+  //    final ComponentLog log = this.getLogger();
+  //
+  //    if (queryStr == null)
+  //    {
+  //      queryStr = context.getProperty(TINKERPOP_QUERY_STR).getValue();
+  //    }
+  //    if (aliasStr == null)
+  //    {
+  //      aliasStr = context.getProperty(TINKERPOP_ALIAS).getValue();
+  //    }
+  //    if (confFileURI == null)
+  //    {
+  //      PropertyValue confFileURIProp = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI);
+  //      confFileURI = confFileURIProp.getValue();
+  //
+  //      if (StringUtils.isEmpty(confFileURI))
+  //      {
+  //        try
+  //        {
+  //          setDefaultConfigs();
+  //        }
+  //        catch (Exception e2)
+  //        {
+  //          log.error("Failed set Default URL config", e2);
+  //
+  //          return;
+  //        }
+  //
+  //      }
+  //      else
+  //      {
+  //        try
+  //        {
+  //
+  //          URI uri = new URI(confFileURI);
+  //          DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
+  //          conf = confBuilder.getConfiguration(true);
+  //        }
+  //        catch (Exception e)
+  //        {
+  //          log.warn("Failed to read URL config; using default values", e);
+  //
+  //          try
+  //          {
+  //            setDefaultConfigs();
+  //          }
+  //          catch (Exception e2)
+  //          {
+  //            log.error("Failed set Default URL config", e2);
+  //
+  //            return;
+  //          }
+  //
+  //        }
+  //      }
+  //      if (client != null)
+  //      {
+  //        client.close();
+  //      }
+  //      if (cluster != null)
+  //      {
+  //        cluster.close();
+  //      }
+  //
+  //      cluster = Cluster.open(conf);
+  //
+  //      Client unaliasedClient = cluster.connect();
+  //
+  //      client = unaliasedClient; //.alias(aliasStr);
+  //
+  //    }
+  //
+  //  }
 
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
   {
@@ -168,7 +162,6 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
 
     }
 
-
     try
     {
       Map<String, String> allAttribs = localFlowFile.getAttributes();
@@ -176,81 +169,80 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
       Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
           .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
           .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+      final Map<String, String> attributes = new HashMap<>(allAttribs);
+      final StringBuilder strbuild = new StringBuilder("[");
 
-      session.read(localFlowFile, new InputStreamCallback()
-      {
-        @Override public void process(InputStream in) throws IOException
+      session.read(localFlowFile, in -> {
+        try
         {
-          try
+          String queryStr = IOUtils.toString(in, Charset.defaultCharset());
+
+          ResultSet res = client.submit(queryStr, tinkerpopAttribs);
+          CompletableFuture<List<Result>> resFuture = res.all();
+
+          if (resFuture.isCompletedExceptionally())
           {
-            String queryStr = IOUtils.toString(in, Charset.defaultCharset());
+            resFuture.exceptionally((Throwable throwable) -> {
+              getLogger().error(
+                  "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage()
+                      .toString());
+              //                                    session.transfer(tempFlowFile, REL_FAILURE);
 
-            ResultSet res = client.submit(queryStr, tinkerpopAttribs);
-            CompletableFuture<List<Result>> resFuture = res.all();
-
-            if (resFuture.isCompletedExceptionally())
-            {
-              resFuture.exceptionally((Throwable throwable) -> {
-                getLogger().error(
-                    "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
-                //                                    session.transfer(tempFlowFile, REL_FAILURE);
-
-                throw new ProcessException(throwable);
-              }).join();
-
-            }
-
-            List<Result> results = resFuture.get();
-
-            GraphSONWriter writer = GraphSONWriter.build().create();
-
-            final Map<String, String> attributes = new HashMap<>(allAttribs);
-            StringBuilder strbuild = new StringBuilder("[");
-            int counter = 0;
-
-            final ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-            for (Result res1 : results)
-            {
-              if (counter != 0)
-              {
-                strbuild.append(',');
-              }
-              writer.writeObject(out, res1.getObject());
-              final String json = out.toString();
-              strbuild.append(json);
-              counter++;
-            }
-
-            strbuild.append(']');
-            attributes.put("query.res", Integer.toString(counter));
-
-            //          GraphSONUtility
-
-            UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
-
-            attributes.put("reqUUID", reqUUID.toString());
-
-            FlowFile retFlowFile = session.create();
-            retFlowFile = session.putAllAttributes(retFlowFile, attributes);
-
-            retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
-
-            session.remove(localFlowFile);
-
-            session.transfer(retFlowFile, REL_SUCCESS);
-
-            return;
+              throw new ProcessException(throwable);
+            }).join();
 
           }
-          catch (Exception e)
+
+          List<Result> results = resFuture.get();
+
+          GraphSONWriter writer = GraphSONWriter.build().create();
+
+          int counter = 0;
+
+          final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+          for (Result res1 : results)
           {
-            log.error("Failed to run query against Tinkerpop server; error: {}", e);
-            throw new IOException(e);
+            if (counter != 0)
+            {
+              strbuild.append(',');
+            }
+            writer.writeObject(out, res1.getObject());
+            final String json = out.toString();
+            strbuild.append(json);
+            counter++;
           }
+
+          strbuild.append(']');
+
+          attributes.put("query.res", Integer.toString(counter));
+
+          //          GraphSONUtility
+
+          UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
+
+          attributes.put("reqUUID", reqUUID.toString());
+        }
+        catch (Exception e)
+        {
+          log.error("Failed to run query against Tinkerpop server; error: {}", e);
+          throw new IOException(e);
         }
       });
-    }catch (Exception e)
+
+      FlowFile retFlowFile = session.create();
+      retFlowFile = session.putAllAttributes(retFlowFile, attributes);
+
+      retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
+
+      session.remove(localFlowFile);
+
+      session.transfer(retFlowFile, REL_SUCCESS);
+
+      return;
+
+    }
+    catch (Exception e)
     {
       if (localFlowFile != null)
       {
