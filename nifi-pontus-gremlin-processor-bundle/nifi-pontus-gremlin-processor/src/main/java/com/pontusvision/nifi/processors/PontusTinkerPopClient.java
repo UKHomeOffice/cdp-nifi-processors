@@ -42,6 +42,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 //import com.google.common.base.CharMatcher;
@@ -158,6 +159,38 @@ public class PontusTinkerPopClient extends AbstractProcessor
     relationships.add(REL_FAILURE);
     relationships.add(REL_SUCCESS);
 
+  }
+
+
+  protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context )
+  {
+    getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
+    session.transfer(flowFile, REL_FAILURE);
+
+    Throwable cause = e.getCause();
+    if (cause instanceof RuntimeException)
+    {
+      try
+      {
+        if (cause.getCause() instanceof TimeoutException)
+        {
+          parseProps(context);
+        }
+        else if (cause.getCause() instanceof RuntimeException){
+          cause = cause.getCause();
+          if (cause.getCause() instanceof TimeoutException )
+          {
+            parseProps(context);
+          }
+
+        }
+      }
+      catch (Throwable t)
+      {
+        getLogger().error("Failed to reconnect {}", new Object[] { t });
+
+      }
+    }
   }
 
   //     new HashSet<>();
@@ -421,6 +454,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
     catch (Exception e)
     {
+      handleError(e,localFlowFile,session,context);
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 

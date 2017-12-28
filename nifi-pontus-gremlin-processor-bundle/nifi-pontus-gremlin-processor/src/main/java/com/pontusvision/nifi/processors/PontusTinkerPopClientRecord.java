@@ -59,37 +59,6 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
     return properties;
   }
 
-  protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context )
-    {
-      getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
-      session.transfer(flowFile, REL_FAILURE);
-
-      Throwable cause = e.getCause();
-      if (cause instanceof RuntimeException)
-      {
-        try
-        {
-          if (cause.getCause() instanceof TimeoutException )
-          {
-            parseProps(context);
-          }
-          else if (cause.getCause() instanceof RuntimeException){
-            cause = cause.getCause();
-            if (cause.getCause() instanceof TimeoutException )
-            {
-              parseProps(context);
-            }
-
-          }
-        }
-        catch (Throwable t)
-        {
-          getLogger().error("Failed to reconnect {}", new Object[] { t });
-
-        }
-      }
-      return;
-    }
 
 
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException

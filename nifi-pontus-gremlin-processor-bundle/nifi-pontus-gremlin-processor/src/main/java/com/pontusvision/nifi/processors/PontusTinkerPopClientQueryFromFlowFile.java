@@ -236,7 +236,6 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
       retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
 
       session.remove(localFlowFile);
-
       session.transfer(retFlowFile, REL_SUCCESS);
 
       return;
@@ -244,6 +243,8 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
     }
     catch (Exception e)
     {
+      handleError(e,localFlowFile,session,context);
+
       if (localFlowFile != null)
       {
         session.transfer(localFlowFile, REL_FAILURE);
