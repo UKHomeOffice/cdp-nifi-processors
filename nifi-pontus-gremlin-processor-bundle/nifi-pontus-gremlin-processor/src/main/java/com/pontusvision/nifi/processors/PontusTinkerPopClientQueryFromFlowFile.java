@@ -12,20 +12,12 @@ import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.logging.ComponentLog;
-import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
-import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.tinkerpop.gremlin.driver.Result;
-import org.apache.tinkerpop.gremlin.driver.ResultSet;
-import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONWriter;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
 //import com.google.common.base.CharMatcher;
 //import org.apache.nifi.hbase.HBaseClientService;
@@ -150,111 +142,132 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
   //
   //  }
 
-  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  @Override public String getQueryStr(ProcessSession session)
   {
-
-    final ComponentLog log = this.getLogger();
     final FlowFile localFlowFile = session.get();
-    if (localFlowFile == null)
-    {
-      log.error("Got a NULL flow file");
-      return;
+    final StringBuilder sb = new StringBuilder();
 
-    }
-
-    try
-    {
-      Map<String, String> allAttribs = localFlowFile.getAttributes();
-
-      Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
-          .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
-          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-      final Map<String, String> attributes = new HashMap<>(allAttribs);
-      final StringBuilder strbuild = new StringBuilder("[");
-
-      session.read(localFlowFile, in -> {
-        try
-        {
-          String queryStr = IOUtils.toString(in, Charset.defaultCharset());
-
-          ResultSet res = client.submit(queryStr, tinkerpopAttribs);
-          CompletableFuture<List<Result>> resFuture = res.all();
-
-          if (resFuture.isCompletedExceptionally())
-          {
-            resFuture.exceptionally((Throwable throwable) -> {
-              getLogger().error(
-                  "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage()
-                      .toString());
-              //                                    session.transfer(tempFlowFile, REL_FAILURE);
-
-              throw new ProcessException(throwable);
-            }).join();
-
-          }
-
-          List<Result> results = resFuture.get();
-
-          GraphSONWriter writer = GraphSONWriter.build().create();
-
-          int counter = 0;
-
-          final ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-          for (Result res1 : results)
-          {
-            if (counter != 0)
-            {
-              strbuild.append(',');
-            }
-            writer.writeObject(out, res1.getObject());
-            final String json = out.toString();
-            strbuild.append(json);
-            counter++;
-          }
-
-          strbuild.append(']');
-
-          attributes.put("query.res", Integer.toString(counter));
-
-          //          GraphSONUtility
-
-          UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
-
-          attributes.put("reqUUID", reqUUID.toString());
-        }
-        catch (Exception e)
-        {
-          log.error("Failed to run query against Tinkerpop server; error: {}", e);
-          throw new IOException(e);
-        }
-      });
-
-      FlowFile retFlowFile = session.create();
-      retFlowFile = session.putAllAttributes(retFlowFile, attributes);
-
-      retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
-
-      session.remove(localFlowFile);
-      session.transfer(retFlowFile, REL_SUCCESS);
-
-      return;
-
-    }
-    catch (Exception e)
-    {
-      handleError(e,localFlowFile,session,context);
-
-      if (localFlowFile != null)
+    session.read(localFlowFile, in -> {
+      try
       {
-        session.transfer(localFlowFile, REL_FAILURE);
+        String queryStr = IOUtils.toString(in, Charset.defaultCharset());
+        sb.append(queryStr);
       }
-      else
+      catch (Exception e)
       {
-        session.transfer(session.create(), REL_FAILURE);
+        getLogger().error("Failed to run query against Tinkerpop server; error: {}", e);
+        throw new IOException(e);
       }
-    }
+    });
 
+    return sb.toString();
   }
+
+//  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+//  {
+//
+//    final ComponentLog log = this.getLogger();
+//    final FlowFile localFlowFile = session.get();
+//    if (localFlowFile == null)
+//    {
+//      log.error("Got a NULL flow file");
+//      return;
+//
+//    }
+//
+//    try
+//    {
+//      Map<String, String> allAttribs = localFlowFile.getAttributes();
+//
+//      Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
+//          .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
+//          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+//      final Map<String, String> attributes = new HashMap<>(allAttribs);
+//      final StringBuilder strbuild = new StringBuilder("[");
+//
+//      session.read(localFlowFile, in -> {
+//        try
+//        {
+//          String queryStr = IOUtils.toString(in, Charset.defaultCharset());
+//
+//          ResultSet res = client.submit(queryStr, tinkerpopAttribs);
+//          CompletableFuture<List<Result>> resFuture = res.all();
+//
+//          if (resFuture.isCompletedExceptionally())
+//          {
+//            resFuture.exceptionally((Throwable throwable) -> {
+//              getLogger().error(
+//                  "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage()
+//                      .toString());
+//              //                                    session.transfer(tempFlowFile, REL_FAILURE);
+//
+//              throw new ProcessException(throwable);
+//            }).join();
+//
+//          }
+//
+//          List<Result> results = resFuture.get();
+//
+//          GraphSONWriter writer = GraphSONWriter.build().create();
+//
+//          int counter = 0;
+//
+//          final ByteArrayOutputStream out = new ByteArrayOutputStream();
+//
+//          for (Result res1 : results)
+//          {
+//            if (counter != 0)
+//            {
+//              strbuild.append(',');
+//            }
+//            writer.writeObject(out, res1.getObject());
+//            final String json = out.toString();
+//            strbuild.append(json);
+//            counter++;
+//          }
+//
+//          strbuild.append(']');
+//
+//          attributes.put("query.res", Integer.toString(counter));
+//
+//          //          GraphSONUtility
+//
+//          UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
+//
+//          attributes.put("reqUUID", reqUUID.toString());
+//        }
+//        catch (Exception e)
+//        {
+//          log.error("Failed to run query against Tinkerpop server; error: {}", e);
+//          throw new IOException(e);
+//        }
+//      });
+//
+//      FlowFile retFlowFile = session.create();
+//      retFlowFile = session.putAllAttributes(retFlowFile, attributes);
+//
+//      retFlowFile = session.write(retFlowFile, out1 -> out1.write(strbuild.toString().getBytes()));
+//
+//      session.remove(localFlowFile);
+//      session.transfer(retFlowFile, REL_SUCCESS);
+//
+//      return;
+//
+//    }
+//    catch (Exception e)
+//    {
+//      handleError(e, localFlowFile, session, context);
+//
+//      if (localFlowFile != null)
+//      {
+//        session.transfer(localFlowFile, REL_FAILURE);
+//      }
+//      else
+//      {
+//        session.transfer(session.create(), REL_FAILURE);
+//      }
+//    }
+//
+//  }
 
 }
