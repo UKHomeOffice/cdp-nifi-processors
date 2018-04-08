@@ -289,8 +289,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     if (useEmbeddedServer)
     {
-      settings = Settings.read("/opt/pontus/pontus-graph/current/config/gremlin.server.yaml");
+      settings = Settings.read("/opt/pontus/pontus-graph/current/conf/gremlin-server.yml");
       serializersSettings = settings.serializers;
+      configureSerializers();
 
       embeddedServer = new ServerGremlinExecutor(settings, null, null);
 
@@ -378,6 +379,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
           {
             settings = Settings.read(new URI(confFileURI).toURL().openStream());
             serializersSettings = settings.serializers;
+            configureSerializers();
             embeddedServer = new ServerGremlinExecutor(settings, null, null);
           }
           else
@@ -489,8 +491,11 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     final Bindings bindings = new SimpleBindings(tinkerpopAttribs);
 
-    bindings.putAll(embeddedServer.getGraphManager().getAsBindings());
+    if (embeddedServer != null)
+    {
+      bindings.putAll(embeddedServer.getGraphManager().getAsBindings());
 
+    }
     return bindings;
   }
 
@@ -503,7 +508,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       throws ExecutionException, InterruptedException, IOException
   {
 
-    if (useEmbeddedServer)
+    if (useEmbeddedServer && embeddedServer != null)
     {
       final GremlinExecutor gremlinExecutor = embeddedServer.getGremlinExecutor();
       //        final MessageTextSerializer serializer = embeddedServer.getGraphManager();
