@@ -404,7 +404,12 @@ public class PontusTinkerPopClient extends AbstractProcessor
   public  ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
   {
 
-    settings = Settings.read(new URI(confFileURI).toURL().openStream());
+    try
+    {
+      settings = Settings.read(new URI(confFileURI).toURL().openStream());
+    }catch(Throwable t){
+      settings = Settings.read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
+    }
     serializersSettings = settings.serializers;
 
     String gconfFileStr = (String) settings.graphs.getOrDefault("graph","/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
