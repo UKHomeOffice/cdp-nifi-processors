@@ -341,7 +341,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     if (useEmbeddedServer == null)
     {
-      useEmbeddedServer = context.getProperty(TINKERPOP_QUERY_STR).asBoolean();
+      useEmbeddedServer = context.getProperty(PONTUS_GRAPH_EMBEDDED_SERVER).asBoolean();
 
     }
 
