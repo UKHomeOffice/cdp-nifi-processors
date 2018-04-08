@@ -6,10 +6,14 @@
 package com.pontusvision.nifi.processors;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.DefaultConfigurationBuilder;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.TriggerSerially;
 import org.apache.nifi.annotation.behavior.WritesAttribute;
@@ -40,6 +44,9 @@ import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONWriter;
 import org.apache.tinkerpop.gremlin.util.function.FunctionUtils;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.JanusGraphFactory;
+import org.janusgraph.diskstorage.configuration.backend.CommonsConfiguration;
 import org.javatuples.Pair;
 
 import javax.script.Bindings;
@@ -48,14 +55,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.tinkerpop.shaded.jackson.core.JsonEncoding.UTF8;
+import static org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration.*;
 
 //import com.google.common.base.CharMatcher;
 //import org.apache.nifi.hbase.HBaseClientService;
@@ -289,11 +299,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     if (useEmbeddedServer)
     {
-      settings = Settings.read("/opt/pontus/pontus-graph/current/conf/gremlin-server.yml");
-      serializersSettings = settings.serializers;
-      configureSerializers();
-
-      embeddedServer = new ServerGremlinExecutor(settings, null, null);
+      createEmbeddedServer();
 
     }
 
@@ -333,6 +339,90 @@ public class PontusTinkerPopClient extends AbstractProcessor
       //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
       //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
     }
+  }
+  protected static String getAbsolutePath(final File configParent, final String file) {
+    final File storeDirectory = new File(file);
+    if (!storeDirectory.isAbsolute()) {
+      String newFile = configParent.getAbsolutePath() + File.separator + file;
+      return newFile;
+    } else {
+      return file;
+    }
+  }
+
+  protected static CommonsConfiguration getLocalConfiguration(File file,String user, String pass) {
+    Preconditions.checkArgument(file != null && file.exists() && file.isFile() && file.canRead(),
+        "Need to specify a readable configuration file, but was given: %s", file.toString());
+
+    try {
+      PropertiesConfiguration configuration = new PropertiesConfiguration(file);
+
+      final File tmpParent = file.getParentFile();
+      final File configParent;
+
+      if (null == tmpParent) {
+        /*
+         * null usually means we were given a JanusGraph config file path
+         * string like "foo.properties" that refers to the current
+         * working directory of the process.
+         */
+        configParent = new File(System.getProperty("user.dir"));
+      } else {
+        configParent = tmpParent;
+      }
+
+      Preconditions.checkNotNull(configParent);
+      Preconditions.checkArgument(configParent.isDirectory());
+
+      // TODO this mangling logic is a relic from the hardcoded string days; it should be deleted and rewritten as a setting on ConfigOption
+      final Pattern p = Pattern.compile("(" +
+          Pattern.quote(STORAGE_NS.getName()) + "\\..*" +
+          "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|" +
+          Pattern.quote(STORAGE_CONF_FILE.getName()) + ")"
+          + "|" +
+          Pattern.quote(INDEX_NS.getName()) + "\\..*" +
+          "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" +
+          Pattern.quote(INDEX_CONF_FILE.getName()) +  ")"
+          + ")");
+
+      final Iterator<String> keysToMangle = Iterators
+          .filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
+
+      while (keysToMangle.hasNext()) {
+        String k = keysToMangle.next();
+        Preconditions.checkNotNull(k);
+        final String s = configuration.getString(k);
+        Preconditions.checkArgument(org.apache.commons.lang.StringUtils.isNotBlank(s),"Invalid Configuration: key %s has null empty value",k);
+        configuration.setProperty(k,getAbsolutePath(configParent,s));
+      }
+      return new CommonsConfiguration(configuration);
+    } catch (ConfigurationException e) {
+      throw new IllegalArgumentException("Could not load configuration at: " + file, e);
+    }
+  }
+
+  public  ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
+  {
+
+    settings = Settings.read(new URI(confFileURI).toURL().openStream());
+    serializersSettings = settings.serializers;
+
+    String gconfFileStr = (String) settings.graphs.getOrDefault("graph","/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
+
+    File gconfFile = new File(gconfFileStr);
+    CommonsConfiguration conf = getLocalConfiguration(gconfFile,null,null);
+
+    JanusGraph graph = JanusGraphFactory.open(conf);
+
+    embeddedServer = new ServerGremlinExecutor(settings, null, null);
+    embeddedServer.getGraphManager().putTraversalSource("g",graph.traversal());
+    embeddedServer.getGraphManager().putGraph("graph",graph);
+
+    configureSerializers();
+
+    return embeddedServer;
+
+
   }
 
   @OnScheduled public void parseProps(final ProcessContext context) throws IOException
@@ -377,10 +467,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
         {
           if (useEmbeddedServer)
           {
-            settings = Settings.read(new URI(confFileURI).toURL().openStream());
-            serializersSettings = settings.serializers;
-            configureSerializers();
-            embeddedServer = new ServerGremlinExecutor(settings, null, null);
+             createEmbeddedServer();
           }
           else
           {
