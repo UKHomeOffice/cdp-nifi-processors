@@ -14,16 +14,15 @@ import org.apache.nifi.serialization.RecordReaderFactory;
 import org.apache.nifi.serialization.record.Record;
 import org.apache.nifi.serialization.record.RecordField;
 import org.apache.nifi.serialization.record.RecordSchema;
-import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 
+import javax.script.Bindings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -132,22 +131,30 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
               // enables us to override any...
               tinkerpopAttribs.putAll(tinkerpopFlowFileAttribs);
 
-              ResultSet resSet = client.submit(queryStr, tinkerpopAttribs);
-              CompletableFuture<List<Result>> results = resSet.all();
+              Bindings bindings = getBindings(tempFlowFile);
+              bindings.putAll(tinkerpopAttribs);
 
-              if (results.isCompletedExceptionally())
-              {
-                results.exceptionally((Throwable throwable) -> {
-                  getLogger().error("Server Error " + throwable.getMessage() + " orig msg: "+ resSet.getOriginalRequestMessage().toString());
-                  //                                    session.transfer(tempFlowFile, REL_FAILURE);
 
-                  throw new ProcessException(throwable);
-                }).join();
+              String queryString = getQueryStr(session);
 
-              }
-              List<Result> allRes = resSet.all().get();
-
-              reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
+              runQuery(bindings,queryString);
+//
+//              ResultSet resSet = client.submit(queryStr, tinkerpopAttribs);
+//              CompletableFuture<List<Result>> results = resSet.all();
+//
+//              if (results.isCompletedExceptionally())
+//              {
+//                results.exceptionally((Throwable throwable) -> {
+//                  getLogger().error("Server Error " + throwable.getMessage() + " orig msg: "+ resSet.getOriginalRequestMessage().toString());
+//                  //                                    session.transfer(tempFlowFile, REL_FAILURE);
+//
+//                  throw new ProcessException(throwable);
+//                }).join();
+//
+//              }
+//              List<Result> allRes = resSet.all().get();
+//
+//              reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
 
               //                            CompletableFuture<ResultSet> res = client.submitAsync(queryStr, tinkerpopAttribs);
               //                            resSets.add(res);

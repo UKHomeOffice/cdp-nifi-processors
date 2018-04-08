@@ -6,8 +6,9 @@
 package com.pontusvision.nifi.processors;
 
 import com.google.common.base.CharMatcher;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.DefaultConfigurationBuilder;
 import org.apache.nifi.annotation.behavior.InputRequirement;
 import org.apache.nifi.annotation.behavior.TriggerSerially;
@@ -26,24 +27,35 @@ import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.StringUtils;
-import org.apache.tinkerpop.gremlin.driver.Client;
-import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.Result;
-import org.apache.tinkerpop.gremlin.driver.ResultSet;
+import org.apache.tinkerpop.gremlin.driver.*;
+import org.apache.tinkerpop.gremlin.driver.message.ResponseMessage;
+import org.apache.tinkerpop.gremlin.driver.message.ResponseStatusCode;
+import org.apache.tinkerpop.gremlin.driver.ser.MessageTextSerializer;
+import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
+import org.apache.tinkerpop.gremlin.server.Settings;
+import org.apache.tinkerpop.gremlin.server.util.ServerGremlinExecutor;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONWriter;
+import org.apache.tinkerpop.gremlin.util.function.FunctionUtils;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
+import org.javatuples.Pair;
 
+import javax.script.Bindings;
+import javax.script.SimpleBindings;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.tinkerpop.shaded.jackson.core.JsonEncoding.UTF8;
 
 //import com.google.common.base.CharMatcher;
 //import org.apache.nifi.hbase.HBaseClientService;
@@ -79,6 +91,15 @@ import java.util.stream.Collectors;
 
 public class PontusTinkerPopClient extends AbstractProcessor
 {
+
+  final PropertyDescriptor PONTUS_GRAPH_EMBEDDED_SERVER = new PropertyDescriptor.Builder()
+      .name("Tinkerpop Embedded Server").description(
+          "Specifies whether an embedded Pontus Graph server should be used inside nifi. "
+              + " If this is set to true, the Tinkerpop Client configuration URI is used to point to the gremlin.server.yaml"
+              + " file that will configure an embedded server.").required(false)
+      .addValidator(StandardValidators.BOOLEAN_VALIDATOR).defaultValue("true")
+      //            .identifiesControllerService(HBaseClientService.class)
+      .build();
 
   final PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
       .name("Tinkerpop Client configuration URI")
@@ -151,8 +172,15 @@ public class PontusTinkerPopClient extends AbstractProcessor
   String queryAttribPrefixStr = "pg_";
   String aliasStr = "g1";
   Client client = null;
+
+  Boolean useEmbeddedServer = null;
+  ServerGremlinExecutor embeddedServer = null;
   Cluster cluster = null;
   Set<Relationship> relationships = new HashSet<>();
+
+  Settings settings;
+  List<Settings.SerializerSettings> serializersSettings;
+  protected final Map<String, MessageTextSerializer> serializers = new HashMap<>();
 
   public PontusTinkerPopClient()
   {
@@ -161,8 +189,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-
-  protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context )
+  protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
     session.transfer(flowFile, REL_FAILURE);
@@ -176,9 +203,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
         {
           parseProps(context);
         }
-        else if (cause.getCause() instanceof RuntimeException){
+        else if (cause.getCause() instanceof RuntimeException)
+        {
           cause = cause.getCause();
-          if (cause.getCause() instanceof TimeoutException )
+          if (cause.getCause() instanceof TimeoutException)
           {
             parseProps(context);
           }
@@ -220,6 +248,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
     final List<PropertyDescriptor> properties = new ArrayList<>();
+    properties.add(PONTUS_GRAPH_EMBEDDED_SERVER);
     properties.add(TINKERPOP_CLIENT_CONF_FILE_URI);
     properties.add(TINKERPOP_QUERY_STR);
     properties.add(TINKERPOP_ALIAS);
@@ -231,7 +260,12 @@ public class PontusTinkerPopClient extends AbstractProcessor
   @Override public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue,
                                            final String newValue)
   {
-    if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
+    if (descriptor.equals(PONTUS_GRAPH_EMBEDDED_SERVER))
+    {
+      embeddedServer = null;
+      useEmbeddedServer = null;
+    }
+    else if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
     {
       confFileURI = null;
     }
@@ -250,47 +284,66 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  public void setDefaultConfigs() throws ConfigurationException
+  public void setDefaultConfigs() throws Exception
   {
-    DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
 
-    conf = confBuilder.getConfiguration(false);
-    conf.setProperty("port", 8182);
-    conf.setProperty("nioPoolSize", 1);
-    conf.setProperty("workerPoolSize", 1);
-    //                    conf.setProperty("username", "root");
-    //                    conf.setProperty("password", "pa55word");
-    //                    conf.setProperty("jaasEntry", "tinkerpop");
-    //                    conf.setProperty("protocol", "GSSAPI");
-    conf.setProperty("hosts", "127.0.0.1");
-    conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
-    conf.setProperty("serializer.config",
-        "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
+    if (useEmbeddedServer)
+    {
+      settings = Settings.read("/opt/pontus/pontus-graph/current/config/gremlin.server.yaml");
+      serializersSettings = settings.serializers;
 
-    //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
-    //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+      embeddedServer = new ServerGremlinExecutor(settings, null, null);
 
-    //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
-    //        conf.setProperty("connectionPool.enableSsl", false);
-    //        conf.setProperty("connectionPool.trustCertChainFile", "");
-    conf.setProperty("connectionPool.minSize", 1);
-    conf.setProperty("connectionPool.maxSize", 1);
-    conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
-    conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-    conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
-    conf.setProperty("connectionPool.minInProcessPerConnection", 1);
-    conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-    //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
-    conf.setProperty("connectionPool.maxContentLength", 2000000);
-    //        conf.setProperty("connectionPool.reconnectInterval", 2000);
-    //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
-    //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+    }
+
+    else
+    {
+      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
+
+      conf = confBuilder.getConfiguration(false);
+      conf.setProperty("port", 8182);
+      conf.setProperty("nioPoolSize", 1);
+      conf.setProperty("workerPoolSize", 1);
+      //                    conf.setProperty("username", "root");
+      //                    conf.setProperty("password", "pa55word");
+      //                    conf.setProperty("jaasEntry", "tinkerpop");
+      //                    conf.setProperty("protocol", "GSSAPI");
+      conf.setProperty("hosts", "127.0.0.1");
+      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
+      conf.setProperty("serializer.config",
+          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
+
+      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
+      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+
+      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
+      //        conf.setProperty("connectionPool.enableSsl", false);
+      //        conf.setProperty("connectionPool.trustCertChainFile", "");
+      conf.setProperty("connectionPool.minSize", 1);
+      conf.setProperty("connectionPool.maxSize", 1);
+      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
+      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
+      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
+      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
+      conf.setProperty("connectionPool.maxContentLength", 2000000);
+      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
+      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
+      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+    }
   }
 
   @OnScheduled public void parseProps(final ProcessContext context) throws IOException
   {
 
     final ComponentLog log = this.getLogger();
+
+    if (useEmbeddedServer == null)
+    {
+      useEmbeddedServer = context.getProperty(TINKERPOP_QUERY_STR).asBoolean();
+
+    }
 
     if (queryStr == null)
     {
@@ -314,19 +367,25 @@ public class PontusTinkerPopClient extends AbstractProcessor
         catch (Exception e2)
         {
           log.error("Failed set Default URL config", e2);
-
           return;
         }
-
       }
       else
       {
         try
         {
-
-          URI uri = new URI(confFileURI);
-          DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
-          conf = confBuilder.getConfiguration(true);
+          if (useEmbeddedServer)
+          {
+            settings = Settings.read(new URI(confFileURI).toURL().openStream());
+            serializersSettings = settings.serializers;
+            embeddedServer = new ServerGremlinExecutor(settings, null, null);
+          }
+          else
+          {
+            URI uri = new URI(confFileURI);
+            DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
+            conf = confBuilder.getConfiguration(true);
+          }
         }
         catch (Exception e)
         {
@@ -339,10 +398,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
           catch (Exception e2)
           {
             log.error("Failed set Default URL config", e2);
-
             return;
           }
-
         }
       }
       if (client != null)
@@ -357,35 +414,147 @@ public class PontusTinkerPopClient extends AbstractProcessor
       cluster = Cluster.open(conf);
 
       Client unaliasedClient = cluster.connect();
-
       client = unaliasedClient; //.alias(aliasStr);
-
     }
 
   }
 
-  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  protected void configureSerializers()
   {
 
-    final ComponentLog log = this.getLogger();
-    FlowFile localFlowFile = null;
+    // grab some sensible defaults if no serializers are present in the config
+    //    final List<Settings.SerializerSettings> serializerSettings =
+    //        (null == this.settings.serializers || this.settings.serializers.isEmpty()) ? DEFAULT_SERIALIZERS : settings.serializers;
 
-    try
-    {
-      final FlowFile flowfile = session.get();
-      if (flowfile == null)
+    serializersSettings.stream().map(config -> {
+      try
       {
-        log.error("Got a NULL flow file");
+        final Class clazz = Class.forName(config.className);
+        if (!MessageSerializer.class.isAssignableFrom(clazz))
+        {
+          //          logger.warn("The {} serialization class does not implement {} - it will not be available.", config.className, MessageSerializer.class.getCanonicalName());
+          return Optional.<MessageSerializer>empty();
+        }
 
+        //        if (clazz.getAnnotation(Deprecated.class) != null)
+        //          logger.warn("The {} serialization class is deprecated.", config.className);
+
+        final MessageSerializer serializer = (MessageSerializer) clazz.newInstance();
+        final Map<String, Graph> graphsDefinedAtStartup = new HashMap<>();
+        for (String graphName : settings.graphs.keySet())
+        {
+          graphsDefinedAtStartup.put(graphName, this.embeddedServer.getGraphManager().getGraph(graphName));
+        }
+
+        if (config.config != null)
+          serializer.configure(config.config, graphsDefinedAtStartup);
+
+        return Optional.ofNullable(serializer);
       }
-      Map<String, String> allAttribs = flowfile.getAttributes();
+      catch (ClassNotFoundException cnfe)
+      {
+        //        logger.warn("Could not find configured serializer class - {} - it will not be available", config.className);
+        return Optional.<MessageSerializer>empty();
+      }
+      catch (Exception ex)
+      {
+        //        logger.warn("Could not instantiate configured serializer class - {} - it will not be available. {}", config.className, ex.getMessage());
+        return Optional.<MessageSerializer>empty();
+      }
+    }).filter(Optional::isPresent).map(Optional::get)
+        .flatMap(ser -> Stream.of(ser.mimeTypesSupported()).map(mimeType -> Pair.with(mimeType, ser))).forEach(pair -> {
+      final String mimeType = pair.getValue0();
+      final MessageTextSerializer serializer = (MessageTextSerializer) pair.getValue1();
+      if (!serializers.containsKey(mimeType))
+      {
+        //        logger.info("Configured {} with {}", mimeType, pair.getValue1().getClass().getName());
+        serializers.put(mimeType, serializer);
+      }
+    });
 
+    if (serializers.size() == 0)
+    {
+      //      logger.error("No serializers were successfully configured - server will not start.");
+      throw new RuntimeException("Serialization configuration error.");
+    }
+  }
 
-      Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
-          .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
-          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+  public Bindings getBindings(FlowFile flowfile)
+  {
+    Map<String, String> allAttribs = flowfile.getAttributes();
 
-      ResultSet res = client.submit(queryStr, tinkerpopAttribs);
+    Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
+        .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    final Bindings bindings = new SimpleBindings(tinkerpopAttribs);
+
+    bindings.putAll(embeddedServer.getGraphManager().getAsBindings());
+
+    return bindings;
+  }
+
+  public String getQueryStr(ProcessSession session)
+  {
+    return queryStr;
+  }
+
+  public byte[] runQuery(Bindings bindings, String queryString)
+      throws ExecutionException, InterruptedException, IOException
+  {
+
+    if (useEmbeddedServer)
+    {
+      final GremlinExecutor gremlinExecutor = embeddedServer.getGremlinExecutor();
+      //        final MessageTextSerializer serializer = embeddedServer.getGraphManager();
+
+      MessageTextSerializer serializer = serializers.get("application/json");
+
+      final CompletableFuture<Object> evalFuture = gremlinExecutor
+          .eval(queryString, null, bindings, FunctionUtils.wrapFunction(o -> {
+            final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID())
+                .code(ResponseStatusCode.SUCCESS).result(IteratorUtils.asList(o)).create();
+
+            try
+            {
+              return Unpooled
+                  .wrappedBuffer(serializer.serializeResponseAsString(responseMessage).getBytes(UTF8.getJavaName()));
+            }
+            catch (Exception ex)
+            {
+              //                logger.warn(String.format("Error during serialization for %s", responseMessage), ex);
+              throw ex;
+            }
+          }));
+
+      evalFuture.exceptionally(t -> {
+        if (t.getMessage() != null)
+        {
+          getLogger().error("Server Error " + t.getMessage());
+          //                                    session.transfer(tempFlowFile, REL_FAILURE);
+
+          throw new ProcessException(t);
+
+          //            sendError(ctx, INTERNAL_SERVER_ERROR, t.getMessage(), Optional.of(t));
+        }
+        else
+        {
+          getLogger().error(String.format("Error encountered evaluating script: %s", queryStr, Optional.of(t)));
+        }
+        return null;
+      });
+
+      ByteBuf buf = (ByteBuf) evalFuture.get();
+
+      if (buf != null)
+      {
+        return buf.array();
+      }
+
+    }
+    else
+    {
+      ResultSet res = client.submit(queryString, bindings);
       CompletableFuture<List<Result>> resFuture = res.all();
 
       if (resFuture.isCompletedExceptionally())
@@ -404,49 +573,60 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       GraphSONWriter writer = GraphSONWriter.build().create();
 
-      final Map<String, String> attributes = new HashMap<>(allAttribs);
       StringBuilder strBld = new StringBuilder("[");
       int counter = 0;
 
-      try (final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-        for (Result res1: results){
-          if (counter != 0){
+      try (final ByteArrayOutputStream out = new ByteArrayOutputStream())
+      {
+        for (Result res1 : results)
+        {
+          if (counter != 0)
+          {
             strBld.append(',');
           }
           writer.writeObject(out, res1.getObject());
           final String json = out.toString();
           strBld.append(json);
-          counter ++;
+          counter++;
 
         }
       }
 
       strBld.append(']');
-      attributes.put("query.res", Integer.toString(counter));
 
+      return strBld.toString().getBytes();
+    }
 
+    return new byte[0];
+  }
 
-      //          GraphSONUtility
+  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  {
 
-      UUID reqUUID = res.getOriginalRequestMessage().getRequestId();
+    final ComponentLog log = this.getLogger();
+    FlowFile localFlowFile = null;
 
-      attributes.put("reqUUID", reqUUID.toString());
+    try
+    {
+      final FlowFile flowfile = session.get();
+      if (flowfile == null)
+      {
+        log.error("Got a NULL flow file");
 
+      }
+      final Bindings bindings = getBindings(flowfile);
+      Map<String, String> allAttribs = flowfile.getAttributes();
+
+      String queryString = getQueryStr(session);
 
       localFlowFile = session.create();
-      localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+      localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
 
-      localFlowFile = session.write(localFlowFile, new OutputStreamCallback() {
+      byte[] res = runQuery(bindings,queryString);
 
-        @Override
-        public void process(OutputStream out) throws IOException {
-
-          out.write(strBld.toString().getBytes());
-        }
-      });
+      localFlowFile = session.write(localFlowFile, out -> out.write(res));
 
       session.remove(flowfile);
-
       session.transfer(localFlowFile, REL_SUCCESS);
 
       return;
@@ -454,7 +634,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
     catch (Exception e)
     {
-      handleError(e,localFlowFile,session,context);
+      handleError(e, localFlowFile, session, context);
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 
@@ -464,7 +644,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
     else
     {
-      session.transfer(session.create(),REL_FAILURE);
+      session.transfer(session.create(), REL_FAILURE);
     }
 
   }

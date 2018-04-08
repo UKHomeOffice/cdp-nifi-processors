@@ -13,9 +13,9 @@ import org.apache.nifi.serialization.RecordReaderFactory;
 import org.apache.nifi.serialization.record.Record;
 import org.apache.nifi.serialization.record.RecordField;
 import org.apache.nifi.serialization.record.RecordSchema;
-import org.apache.tinkerpop.gremlin.driver.Result;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 
+import javax.script.Bindings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -74,7 +74,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
 
     try
     {
-//      final FlowFile tempFlowFile = flowFile;
+      final FlowFile tempFlowFile = flowFile;
 
       flowFile = session.write(flowFile, new StreamCallback()
       {
@@ -123,25 +123,35 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
             Map<String, Object> bulkLoadAttr = new HashMap<>();
             bulkLoadAttr.put("listOfMaps", bulkLoad);
 
-            ResultSet resSet = client.submit(queryStr, bulkLoadAttr);
-            CompletableFuture<List<Result>> results = resSet.all();
+            Bindings bindings = getBindings(tempFlowFile);
 
-            if (results.isCompletedExceptionally())
-            {
-              results.exceptionally((Throwable throwable) -> {
-                getLogger().error(
-                    "Server Error " + throwable.getMessage() + " orig msg: " + resSet.getOriginalRequestMessage()
-                        .toString());
-                //                                    session.transfer(tempFlowFile, REL_FAILURE);
+            bindings.putAll(bulkLoadAttr);
 
-                throw new ProcessException(throwable);
-              }).join();
+            String queryString = getQueryStr(session);
 
-            }
-            List<Result> allRes = resSet.all().get();
+            runQuery(bindings,queryString);
+
+//
+//            ResultSet resSet = client.submit(queryStr, bulkLoadAttr);
+//            CompletableFuture<List<Result>> results = resSet.all();
+//
+//            if (results.isCompletedExceptionally())
+//            {
+//              results.exceptionally((Throwable throwable) -> {
+//                getLogger().error(
+//                    "Server Error " + throwable.getMessage() + " orig msg: " + resSet.getOriginalRequestMessage()
+//                        .toString());
+//                //                                    session.transfer(tempFlowFile, REL_FAILURE);
+//
+//                throw new ProcessException(throwable);
+//              }).join();
+//
+//            }
+//            List<Result> allRes = resSet.all().get();
+
             recordCount.set(count);
 
-            reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
+//            reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
 
           }
           catch (final CompletionException | ProcessException pe)
@@ -155,7 +165,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
         }
       });
       attributes.put("reqUUIDs", reqUUIDs.toString());
-      attributes.put("processed.record.count", String.valueOf(reqUUIDs.size()));
+//      attributes.put("processed.record.count", String.valueOf(reqUUIDs.size()));
       attributes.put("requested.record.count", String.valueOf(recordCount.get()));
 
       FlowFile localFlowFile = original;
