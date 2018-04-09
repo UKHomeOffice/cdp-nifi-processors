@@ -472,7 +472,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
         {
           if (useEmbeddedServer)
           {
-             createEmbeddedServer();
+            createEmbeddedServer();
           }
           else
           {
@@ -505,10 +505,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
         cluster.close();
       }
 
-      cluster = Cluster.open(conf);
+      if (!useEmbeddedServer)
+      {
+        cluster = Cluster.open(conf);
 
-      Client unaliasedClient = cluster.connect();
-      client = unaliasedClient; //.alias(aliasStr);
+        Client unaliasedClient = cluster.connect();
+        client = unaliasedClient; //.alias(aliasStr);
+      }
     }
 
   }
