@@ -558,11 +558,17 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }).filter(Optional::isPresent).map(Optional::get)
         .flatMap(ser -> Stream.of(ser.mimeTypesSupported()).map(mimeType -> Pair.with(mimeType, ser))).forEach(pair -> {
       final String mimeType = pair.getValue0();
-      final MessageTextSerializer serializer = (MessageTextSerializer) pair.getValue1();
-      if (!serializers.containsKey(mimeType))
+
+      MessageSerializer ser = pair.getValue1();
+      if (ser instanceof MessageTextSerializer )
       {
-        //        logger.info("Configured {} with {}", mimeType, pair.getValue1().getClass().getName());
-        serializers.put(mimeType, serializer);
+        final MessageTextSerializer serializer = (MessageTextSerializer) ser;
+
+        if (!serializers.containsKey(mimeType))
+        {
+          //        logger.info("Configured {} with {}", mimeType, pair.getValue1().getClass().getName());
+          serializers.put(mimeType, serializer);
+        }
       }
     });
 
