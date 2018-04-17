@@ -606,9 +606,12 @@ public class PontusTinkerPopClient extends AbstractProcessor
   }
 
   public byte[] runQuery(Bindings bindings, String queryString)
-      throws ExecutionException, InterruptedException, IOException
+      throws ExecutionException, InterruptedException, IOException, URISyntaxException
   {
 
+    if (useEmbeddedServer && embeddedServer == null){
+      embeddedServer = createEmbeddedServer();
+    }
     if (useEmbeddedServer && embeddedServer != null)
     {
       final GremlinExecutor gremlinExecutor = embeddedServer.getGremlinExecutor();
