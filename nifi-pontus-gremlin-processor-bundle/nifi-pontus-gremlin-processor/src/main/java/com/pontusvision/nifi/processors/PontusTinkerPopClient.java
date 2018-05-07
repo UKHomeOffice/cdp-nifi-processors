@@ -105,7 +105,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   final PropertyDescriptor PONTUS_GRAPH_EMBEDDED_SERVER = new PropertyDescriptor.Builder()
       .name("Tinkerpop Embedded Server").description(
           "Specifies whether an embedded Pontus Graph server should be used inside nifi. "
-              + " If this is set to true, the Tinkerpop Client configuration URI is used to point to the gremlin.server.yaml"
+              + " If this is set to true, the Tinkerpop Client configuration URI is used to point to the gremlin-server.yml"
               + " file that will configure an embedded server.").required(false)
       .addValidator(StandardValidators.BOOLEAN_VALIDATOR).defaultValue("true")
       //            .identifiesControllerService(HBaseClientService.class)
@@ -113,7 +113,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   final PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
       .name("Tinkerpop Client configuration URI")
-      .description("Specifies the configuration file to configure this connection to tinkerpop.").required(false)
+      .description("Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).").required(false)
       .addValidator(StandardValidators.URI_VALIDATOR)
       //            .identifiesControllerService(HBaseClientService.class)
       .build();
@@ -403,11 +403,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   public  ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
   {
+    final ComponentLog log = this.getLogger();
 
     try
     {
       settings = Settings.read(new URI(confFileURI).toURL().openStream());
     }catch(Throwable t){
+      log.warn("Failed to open " + confFileURI + "; attempting default /opt/pontus/pontus-graph/current/conf/gremlin-server.yml; error: " + t.getMessage());
+
       settings = Settings.read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
     }
     serializersSettings = settings.serializers;
