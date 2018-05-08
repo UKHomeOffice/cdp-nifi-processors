@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 //import java.util.*;
 
 
-@TriggerSerially @SupportsBatching @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
+@EventDriven  @SupportsBatching @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 //@SideEffectFree
 @Tags({ "GDPR", "record","bulkload", "Write", "schema", "tinkerpop", "gremlin", "json", "csv", "avro", "log", "logs", "freeform",
     "text" }) @WritesAttributes({
