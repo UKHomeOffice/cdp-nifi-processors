@@ -25,7 +25,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.min-version>3.0.5</maven.min-version>
-        <nifi.version>1.2.0</nifi.version>
+        <nifi.version>1.6.0</nifi.version>
         <slf4j.version>1.7.12</slf4j.version>
         <java-uuid-generator.version>3.1.4</java-uuid-generator.version>
         <es.version>2.4.3</es.version>
