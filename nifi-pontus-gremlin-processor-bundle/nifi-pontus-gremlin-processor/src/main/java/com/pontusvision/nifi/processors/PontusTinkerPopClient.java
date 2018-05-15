@@ -728,10 +728,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
       if (flowfile == null)
       {
         log.error("Got a NULL flow file");
-
+        return;
       }
+
       final Bindings bindings = getBindings(flowfile);
+
       Map<String, String> allAttribs = flowfile.getAttributes();
+      session.remove(flowfile);
 
       String queryString = getQueryStr(session);
 
@@ -742,7 +745,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       localFlowFile = session.write(localFlowFile, out -> out.write(res));
 
-      session.remove(flowfile);
       session.transfer(localFlowFile, REL_SUCCESS);
 
       return;
