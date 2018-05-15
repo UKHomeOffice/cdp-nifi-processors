@@ -198,8 +198,19 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   protected void handleError(Exception e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
-    getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
-    session.transfer(flowFile, REL_FAILURE);
+
+    if (flowFile != null)
+    {
+      getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
+
+      session.transfer(flowFile, REL_FAILURE);
+    }
+    else
+    {
+      getLogger().error("Found a NULL flow file! ",  e );
+
+      session.transfer(session.create(), REL_FAILURE);
+    }
 
     Throwable cause = e.getCause();
     if (cause instanceof RuntimeException)
@@ -747,14 +758,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 
-    if (localFlowFile != null)
-    {
-      session.transfer(localFlowFile, REL_FAILURE);
-    }
-    else
-    {
-      session.transfer(session.create(), REL_FAILURE);
-    }
+
 
   }
 
