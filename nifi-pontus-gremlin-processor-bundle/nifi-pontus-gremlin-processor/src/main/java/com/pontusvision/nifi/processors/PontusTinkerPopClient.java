@@ -48,9 +48,7 @@ import org.javatuples.Pair;
 
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -200,13 +198,19 @@ public class PontusTinkerPopClient extends AbstractProcessor
   {
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
 //    session.transfer(flowFile, REL_FAILURE);
+
     if (flowFile != null)
     {
+      flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
+      flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
       session.transfer(flowFile, REL_FAILURE);
     }
     else
     {
-      session.transfer(session.create(), REL_FAILURE);
+      FlowFile ff = session.create();
+      ff = session.putAttribute(ff, "PontusTinkerPopClient.error", e.getMessage());
+      ff = session.putAttribute(ff, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
+      session.transfer(ff, REL_FAILURE);
     }
     Throwable cause = e.getCause();
     if (cause instanceof RuntimeException)
@@ -760,4 +764,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
+  private String getStackTrace(Throwable e) {
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    e.printStackTrace(pw);
+    return sw.toString();
+  }
 }
