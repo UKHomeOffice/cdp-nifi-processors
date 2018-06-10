@@ -18,14 +18,14 @@
 
     <groupId>org.apache.nifi</groupId>
     <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>pom</packaging>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <maven.min-version>3.0.5</maven.min-version>
-        <janusgraph.version>100.2.0-SNAPSHOT</janusgraph.version>
+        <janusgraph.version>100-2.1</janusgraph.version>
         <nifi.version>1.6.0</nifi.version>
         <slf4j.version>1.7.25</slf4j.version>
         <gremlin-version>3.3.3</gremlin-version>

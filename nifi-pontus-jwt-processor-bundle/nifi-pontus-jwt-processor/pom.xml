@@ -163,7 +163,7 @@
         <dependency>
             <groupId>pontus-redaction</groupId>
             <artifactId>pontus-redaction-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.99.0</version>
 
         </dependency>
 
