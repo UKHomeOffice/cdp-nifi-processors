@@ -23,14 +23,14 @@
     </parent>
 
     <artifactId>nifi-pontus-gremlin-processor-nar</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>nar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-pontus-gremlin-processor</artifactId>
-            <version>1.0</version>
+            <version>1.1</version>
         </dependency>
         <!-- NAR dependency on the API so the processor can use the service at runtime -->
 
