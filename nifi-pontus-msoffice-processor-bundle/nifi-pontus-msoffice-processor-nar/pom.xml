@@ -20,11 +20,11 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-pontus-msoffice-processor-bundle</artifactId>
-        <version>1.0</version>
+        <version>1.1</version>
     </parent>
 
     <artifactId>nifi-pontus-msoffice-processor-nar</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>nar</packaging>
 
     <dependencies>

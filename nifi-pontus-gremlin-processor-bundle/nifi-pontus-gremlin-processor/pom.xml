@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
-        <version>1.0</version>
+        <version>1.1</version>
     </parent>
 
     <artifactId>nifi-pontus-gremlin-processor</artifactId>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>pv-gdpr</groupId>
             <artifactId>pontus-gdpr-graph</artifactId>
-            <version>1.0</version>
+            <version>1.1</version>
         </dependency>
 
 
