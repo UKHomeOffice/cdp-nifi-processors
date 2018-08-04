@@ -30,149 +30,33 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author phillip
  */
-public class JWTProcessorsTest {
-  class MockSSLContextService implements SSLContextService {
-    String description;
-
-    public MockSSLContextService(String description) {
-      this.description = description;
-    }
-
-    @Override
-    public SSLContext createSSLContext(ClientAuth clientAuth) throws ProcessException {
-      return null;
-    }
-
-    @Override
-    public String getTrustStoreFile() {
-      return "security/kafka.client.truststore.jks";
-    }
-
-    @Override
-    public String getTrustStoreType() {
-      return "JKS";
-    }
-
-    @Override
-    public String getTrustStorePassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public boolean isTrustStoreConfigured() {
-      return true;
-    }
-
-    @Override
-    public String getKeyStoreFile() {
-      return "security/kafka.client.keystore.jks";
-    }
-
-    @Override
-    public String getKeyStoreType() {
-      return "JKS";
-    }
-
-    @Override
-    public String getKeyStorePassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public String getKeyPassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public boolean isKeyStoreConfigured() {
-      return true;
-    }
-
-    @Override
-    public String getSslAlgorithm() {
-      return "TLS";
-    }
-
-    @Override
-    public void initialize(ControllerServiceInitializationContext context) throws InitializationException {
-
-    }
-
-    @Override
-    public Collection<ValidationResult> validate(ValidationContext context) {
-      ValidationResult.Builder builder = new ValidationResult.Builder();
-
-
-      boolean isValid = true;
-
-      String message = "Incompatible values for TLS Key, alias, and sign algorithm:";
-
-      builder.valid(isValid);
-      builder.input("input");
-      builder.subject("subject");
-
-
-      ValidationResult res = builder.build();
-
-      ArrayList<ValidationResult> retVal = new ArrayList<>();
-      retVal.add(res);
-
-      return retVal;
-
-
-    }
-
-    @Override
-    public PropertyDescriptor getPropertyDescriptor(String name) {
-      PropertyDescriptor.Builder builder = new PropertyDescriptor.Builder();
-      builder.name(name);
-
-      return builder.build();
-    }
-
-    @Override
-    public void onPropertyModified(PropertyDescriptor descriptor, String oldValue, String newValue) {
-
-    }
-
-    @Override
-    public List<PropertyDescriptor> getPropertyDescriptors() {
-      ArrayList<PropertyDescriptor> retVal = new ArrayList<>();
-      return retVal;
-
-    }
-
-    @Override
-    public String getIdentifier() {
-      return description;
-    }
-  }
+public class JWTProcessorsTest
+{
+  SSLContextService sslContextService = new MockSSLContextService("sslContext");
 
   ;
-
-
-  SSLContextService sslContextService = new MockSSLContextService("sslContext");
   SSLContextService sslContextService2 = new MockSSLContextService("sslContext2");
-
 
   /**
    * Test of onTrigger method, of class JsonProcessor.
    */
-  @org.junit.Test
-  public void testOnTrigger() throws IOException {
+  @org.junit.Test public void testOnTrigger() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\",\"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
     InputStream fil = new ByteArrayInputStream(rawJwtStr.getBytes());
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTCreatorProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -195,16 +79,17 @@ public class JWTProcessorsTest {
     assertTrue("1 match", headerResults.size() == 1);
 
     InputStream fil2 = new ByteArrayInputStream(headerResults.get(0).toByteArray());
-//    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
-
+    //    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
 
     TestRunner runner2 = TestRunners.newTestRunner(new JWTDecoderProcessor());
-    try {
+    try
+    {
       runner2.addControllerService("sslContext2", sslContextService2);
       runner2.enableControllerService(sslContextService2);
 
-
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service to runner 2", false);
     }
@@ -214,7 +99,6 @@ public class JWTProcessorsTest {
     runner2.setProperty(JWTDecoderProcessor.JWT_KEY_ALIAS, "jwtkey");
     runner2.setProperty(JWTDecoderProcessor.JWT_ATTRIBUTE_NAME, "");
 
-
     // Add the content to the runner
     runner2.enqueue(fil2);
 
@@ -222,7 +106,6 @@ public class JWTProcessorsTest {
 
     // All results were processed with out failure
     runner2.assertQueueEmpty();
-
 
     // If you need to read or do additional tests on results you can access the content
     List<MockFlowFile> results = runner2.getFlowFilesForRelationship(JWTDecoderProcessor.SUCCESS);
@@ -233,21 +116,23 @@ public class JWTProcessorsTest {
 
   }
 
-  @org.junit.Test
-  public void testOnTriggerWithAttributes() throws IOException {
+  @org.junit.Test public void testOnTriggerWithAttributes() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\",\"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
     InputStream fil = new ByteArrayInputStream(rawJwtStr.getBytes());
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTCreatorProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -262,7 +147,6 @@ public class JWTProcessorsTest {
     attribsMap.put("jwt", rawJwtStr);
 
     ff.putAttributes(attribsMap);
-
 
     // Add the content t
     //
@@ -282,17 +166,17 @@ public class JWTProcessorsTest {
 
     ff2.putAttributes(attribsMap2);
 
-
-//    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
-
+    //    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
 
     TestRunner runner2 = TestRunners.newTestRunner(new JWTDecoderProcessor());
-    try {
+    try
+    {
       runner2.addControllerService("sslContext2", sslContextService2);
       runner2.enableControllerService(sslContextService2);
 
-
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service to runner 2", false);
     }
@@ -302,7 +186,6 @@ public class JWTProcessorsTest {
     runner2.setProperty(JWTDecoderProcessor.JWT_KEY_ALIAS, "jwtkey");
     runner2.setProperty(JWTDecoderProcessor.JWT_ATTRIBUTE_NAME, "jwt");
 
-
     // Add the content to the runner
     runner2.enqueue(ff2);
 
@@ -311,7 +194,6 @@ public class JWTProcessorsTest {
     // All results were processed with out failure
     runner2.assertQueueEmpty();
 
-
     // If you need to read or do additional tests on results you can access the content
     List<MockFlowFile> results = runner2.getFlowFilesForRelationship(JWTDecoderProcessor.SUCCESS);
     assertTrue("1 match", results.size() == 1);
@@ -319,25 +201,25 @@ public class JWTProcessorsTest {
     String resultValue = result.getAttribute("jwt");
     assertTrue("Values Match", rawJwtStr.equals(resultValue));
 
-
   }
 
-
-  @org.junit.Test
-  public void testOnTriggerWithTimeoutProp() throws IOException {
+  @org.junit.Test public void testOnTriggerWithTimeoutProp() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\",\"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
     InputStream fil = new ByteArrayInputStream(rawJwtStr.getBytes());
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTCreatorProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -354,7 +236,6 @@ public class JWTProcessorsTest {
 
     ff.putAttributes(attribsMap);
 
-
     // Add the content t
     //
     // o the runner
@@ -373,17 +254,17 @@ public class JWTProcessorsTest {
 
     ff2.putAttributes(attribsMap2);
 
-
-//    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
-
+    //    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
 
     TestRunner runner2 = TestRunners.newTestRunner(new JWTDecoderProcessor());
-    try {
+    try
+    {
       runner2.addControllerService("sslContext2", sslContextService2);
       runner2.enableControllerService(sslContextService2);
 
-
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service to runner 2", false);
     }
@@ -393,7 +274,6 @@ public class JWTProcessorsTest {
     runner2.setProperty(JWTDecoderProcessor.JWT_KEY_ALIAS, "jwtkey");
     runner2.setProperty(JWTDecoderProcessor.JWT_ATTRIBUTE_NAME, "jwt");
 
-
     // Add the content to the runner
     runner2.enqueue(ff2);
 
@@ -402,7 +282,6 @@ public class JWTProcessorsTest {
     // All results were processed with out failure
     runner2.assertQueueEmpty();
 
-
     // If you need to read or do additional tests on results you can access the content
     List<MockFlowFile> results = runner2.getFlowFilesForRelationship(JWTDecoderProcessor.SUCCESS);
     assertTrue("1 match", results.size() == 1);
@@ -410,8 +289,8 @@ public class JWTProcessorsTest {
     String resultValue = result.getAttribute("jwt");
     assertTrue("Values Don't Match", !rawJwtStr.equals(resultValue));
 
-
-    try {
+    try
+    {
       JSONObject resultValObj = JSONObjectUtils.parse(resultValue);
       JSONObject rawJwtObj = JSONObjectUtils.parse(rawJwtStr);
 
@@ -421,30 +300,31 @@ public class JWTProcessorsTest {
 
       assertTrue("expiration only in results", resultValObj.containsKey("exp") && !rawJwtObj.containsKey("exp"));
 
-
-    } catch (ParseException e) {
+    }
+    catch (ParseException e)
+    {
       e.printStackTrace();
     }
 
-
   }
 
-
-  @org.junit.Test
-  public void testOnTriggerWithTimeoutPropAndOverridingPayload() throws IOException {
+  @org.junit.Test public void testOnTriggerWithTimeoutPropAndOverridingPayload() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\", \"exp\":100,  \"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
     InputStream fil = new ByteArrayInputStream(rawJwtStr.getBytes());
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTCreatorProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -460,7 +340,6 @@ public class JWTProcessorsTest {
     attribsMap.put("jwt", rawJwtStr);
 
     ff.putAttributes(attribsMap);
-
 
     // Add the content t
     //
@@ -480,17 +359,17 @@ public class JWTProcessorsTest {
 
     ff2.putAttributes(attribsMap2);
 
-
-//    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
-
+    //    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
 
     TestRunner runner2 = TestRunners.newTestRunner(new JWTDecoderProcessor());
-    try {
+    try
+    {
       runner2.addControllerService("sslContext2", sslContextService2);
       runner2.enableControllerService(sslContextService2);
 
-
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service to runner 2", false);
     }
@@ -500,7 +379,6 @@ public class JWTProcessorsTest {
     runner2.setProperty(JWTDecoderProcessor.JWT_KEY_ALIAS, "jwtkey");
     runner2.setProperty(JWTDecoderProcessor.JWT_ATTRIBUTE_NAME, "jwt");
 
-
     // Add the content to the runner
     runner2.enqueue(ff2);
 
@@ -509,7 +387,6 @@ public class JWTProcessorsTest {
     // All results were processed with out failure
     runner2.assertQueueEmpty();
 
-
     // If you need to read or do additional tests on results you can access the content
     List<MockFlowFile> results = runner2.getFlowFilesForRelationship(JWTDecoderProcessor.SUCCESS);
     assertTrue("1 match", results.size() == 1);
@@ -517,8 +394,8 @@ public class JWTProcessorsTest {
     String resultValue = result.getAttribute("jwt");
     assertTrue("Values Match", !rawJwtStr.equals(resultValue));
 
-
-    try {
+    try
+    {
       JSONObject resultValObj = JSONObjectUtils.parse(resultValue);
       JSONObject rawJwtObj = JSONObjectUtils.parse(rawJwtStr);
 
@@ -528,30 +405,31 @@ public class JWTProcessorsTest {
 
       assertTrue("expiration in both results", resultValObj.containsKey("exp") && rawJwtObj.containsKey("exp"));
 
-
-    } catch (ParseException e) {
+    }
+    catch (ParseException e)
+    {
       e.printStackTrace();
     }
 
-
   }
 
-
-  @org.junit.Test
-  public void testOnTriggerWithInvalidExpPayload() throws IOException {
+  @org.junit.Test public void testOnTriggerWithInvalidExpPayload() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\", \"exp\":\"100\",  \"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
     InputStream fil = new ByteArrayInputStream(rawJwtStr.getBytes());
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTCreatorProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -567,7 +445,6 @@ public class JWTProcessorsTest {
 
     ff.putAttributes(attribsMap);
 
-
     // Add the content t
     //
     // o the runner
@@ -576,9 +453,7 @@ public class JWTProcessorsTest {
     // Run the enqueued content, it also takes an int = number of contents queued
     runner.run(1);
 
-
     List<MockFlowFile> headerResults = runner.getFlowFilesForRelationship(JWTCreatorProcessor.FAILURE);
-
 
     assertTrue("1 match", headerResults.size() == 1);
 
@@ -588,17 +463,17 @@ public class JWTProcessorsTest {
 
     ff2.putAttributes(attribsMap2);
 
-
-//    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
-
+    //    InputStream fil2 = new ByteArrayInputStream(rawJwtStr.getBytes());
 
     TestRunner runner2 = TestRunners.newTestRunner(new JWTDecoderProcessor());
-    try {
+    try
+    {
       runner2.addControllerService("sslContext2", sslContextService2);
       runner2.enableControllerService(sslContextService2);
 
-
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service to runner 2", false);
     }
@@ -608,19 +483,20 @@ public class JWTProcessorsTest {
     runner2.setProperty(JWTDecoderProcessor.JWT_KEY_ALIAS, "jwtkey");
     runner2.setProperty(JWTDecoderProcessor.JWT_ATTRIBUTE_NAME, "jwt");
 
-
     // Add the content to the runner
     runner2.enqueue(ff2);
 
-    try {
+    try
+    {
       runner2.run(1);
-    } catch (Exception e) {
+    }
+    catch (Exception e)
+    {
       assertTrue("invalid entry", true);
     }
 
     // All results were processed with out failure
     runner2.assertQueueEmpty();
-
 
     // If you need to read or do additional tests on results you can access the content
     List<MockFlowFile> results = runner2.getFlowFilesForRelationship(JWTDecoderProcessor.FAILURE);
@@ -629,8 +505,122 @@ public class JWTProcessorsTest {
     String resultValue = result.getAttribute("jwt");
     assertTrue("Values Match", rawJwtStr.equals(resultValue));
 
-
   }
 
+  class MockSSLContextService implements SSLContextService
+  {
+    String description;
+
+    public MockSSLContextService(String description)
+    {
+      this.description = description;
+    }
+
+    @Override public SSLContext createSSLContext(ClientAuth clientAuth) throws ProcessException
+    {
+      return null;
+    }
+
+    @Override public String getTrustStoreFile()
+    {
+      return "security/kafka.client.truststore.jks";
+    }
+
+    @Override public String getTrustStoreType()
+    {
+      return "JKS";
+    }
+
+    @Override public String getTrustStorePassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public boolean isTrustStoreConfigured()
+    {
+      return true;
+    }
+
+    @Override public String getKeyStoreFile()
+    {
+      return "security/kafka.client.keystore.jks";
+    }
+
+    @Override public String getKeyStoreType()
+    {
+      return "JKS";
+    }
+
+    @Override public String getKeyStorePassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public String getKeyPassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public boolean isKeyStoreConfigured()
+    {
+      return true;
+    }
+
+    @Override public String getSslAlgorithm()
+    {
+      return "TLS";
+    }
+
+    @Override public void initialize(ControllerServiceInitializationContext context) throws InitializationException
+    {
+
+    }
+
+    @Override public Collection<ValidationResult> validate(ValidationContext context)
+    {
+      ValidationResult.Builder builder = new ValidationResult.Builder();
+
+      boolean isValid = true;
+
+      String message = "Incompatible values for TLS Key, alias, and sign algorithm:";
+
+      builder.valid(isValid);
+      builder.input("input");
+      builder.subject("subject");
+
+      ValidationResult res = builder.build();
+
+      ArrayList<ValidationResult> retVal = new ArrayList<>();
+      retVal.add(res);
+
+      return retVal;
+
+    }
+
+    @Override public PropertyDescriptor getPropertyDescriptor(String name)
+    {
+      PropertyDescriptor.Builder builder = new PropertyDescriptor.Builder();
+      builder.name(name);
+
+      return builder.build();
+    }
+
+    @Override public void onPropertyModified(PropertyDescriptor descriptor, String oldValue, String newValue)
+    {
+
+    }
+
+    @Override public List<PropertyDescriptor> getPropertyDescriptors()
+    {
+      ArrayList<PropertyDescriptor> retVal = new ArrayList<>();
+      return retVal;
+
+    }
+
+    @Override public String getIdentifier()
+    {
+      return description;
+    }
+  }
 
 }

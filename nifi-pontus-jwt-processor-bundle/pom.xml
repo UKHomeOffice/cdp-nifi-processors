@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -66,92 +66,91 @@
     <!--<repositories>-->
 
 
+    <!--<repository>-->
 
-        <!--<repository>-->
+    <!--<releases>-->
 
-            <!--<releases>-->
+    <!--<enabled>true</enabled>-->
 
-                <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>always</updatePolicy>-->
 
-                <!--<updatePolicy>always</updatePolicy>-->
+    <!--<checksumPolicy>warn</checksumPolicy>-->
 
-                <!--<checksumPolicy>warn</checksumPolicy>-->
+    <!--</releases>-->
 
-            <!--</releases>-->
+    <!--<snapshots>-->
 
-            <!--<snapshots>-->
+    <!--<enabled>true</enabled>-->
 
-                <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>never</updatePolicy>-->
 
-                <!--<updatePolicy>never</updatePolicy>-->
+    <!--<checksumPolicy>fail</checksumPolicy>-->
 
-                <!--<checksumPolicy>fail</checksumPolicy>-->
+    <!--</snapshots>-->
 
-            <!--</snapshots>-->
+    <!--<id>HDPReleases</id>-->
 
-            <!--<id>HDPReleases</id>-->
+    <!--<name>HDP Releases</name>-->
 
-            <!--<name>HDP Releases</name>-->
+    <!--<url>http://repo.hortonworks.com/content/repositories/releases/</url>-->
 
-            <!--<url>http://repo.hortonworks.com/content/repositories/releases/</url>-->
+    <!--<layout>default</layout>-->
 
-            <!--<layout>default</layout>-->
+    <!--</repository>-->
 
-        <!--</repository>-->
+    <!--<repository>-->
 
-        <!--<repository>-->
+    <!--<releases>-->
 
-            <!--<releases>-->
+    <!--<enabled>true</enabled>-->
 
-                <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>always</updatePolicy>-->
 
-                <!--<updatePolicy>always</updatePolicy>-->
+    <!--<checksumPolicy>warn</checksumPolicy>-->
 
-                <!--<checksumPolicy>warn</checksumPolicy>-->
+    <!--</releases>-->
 
-            <!--</releases>-->
+    <!--<snapshots>-->
 
-            <!--<snapshots>-->
+    <!--<enabled>true</enabled>-->
 
-                <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>never</updatePolicy>-->
 
-                <!--<updatePolicy>never</updatePolicy>-->
+    <!--<checksumPolicy>fail</checksumPolicy>-->
 
-                <!--<checksumPolicy>fail</checksumPolicy>-->
+    <!--</snapshots>-->
 
-            <!--</snapshots>-->
+    <!--<id>HDPPublic</id>-->
 
-            <!--<id>HDPPublic</id>-->
+    <!--<name>HDP Public</name>-->
 
-            <!--<name>HDP Public</name>-->
+    <!--<url>http://repo.hortonworks.com/content/repositories/public/</url>-->
 
-            <!--<url>http://repo.hortonworks.com/content/repositories/public/</url>-->
+    <!--<layout>default</layout>-->
 
-            <!--<layout>default</layout>-->
+    <!--</repository>-->
 
-        <!--</repository>-->
+    <!--<repository>-->
+    <!--<releases>-->
+    <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>always</updatePolicy>-->
+    <!--<checksumPolicy>warn</checksumPolicy>-->
+    <!--</releases>-->
+    <!--<snapshots>-->
+    <!--<enabled>true</enabled>-->
+    <!--<updatePolicy>always</updatePolicy>-->
+    <!--<checksumPolicy>warn</checksumPolicy>-->
+    <!--</snapshots>-->
 
-        <!--<repository>-->
-            <!--<releases>-->
-                <!--<enabled>true</enabled>-->
-                <!--<updatePolicy>always</updatePolicy>-->
-                <!--<checksumPolicy>warn</checksumPolicy>-->
-            <!--</releases>-->
-            <!--<snapshots>-->
-                <!--<enabled>true</enabled>-->
-                <!--<updatePolicy>always</updatePolicy>-->
-                <!--<checksumPolicy>warn</checksumPolicy>-->
-            <!--</snapshots>-->
+    <!--<id>Local</id>-->
 
-            <!--<id>Local</id>-->
+    <!--<name>Local</name>-->
 
-            <!--<name>Local</name>-->
+    <!--<url>file://${user.home}/.m2/repository/</url>-->
 
-            <!--<url>file://${user.home}/.m2/repository/</url>-->
+    <!--<layout>default</layout>-->
 
-            <!--<layout>default</layout>-->
-
-        <!--</repository>-->
+    <!--</repository>-->
     <!--</repositories>-->
 
 </project>

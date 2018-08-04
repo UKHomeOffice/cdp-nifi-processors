@@ -21,96 +21,30 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author phillip
  */
-public class SecurityHashProcessorTest {
-
-
-  class MockSSLContextService extends  SecurityHashStandardSSLContextService {
-    String description;
-
-    public MockSSLContextService(String description) {
-      this.description = description;
-    }
-
-
-    @Override
-    public String getTrustStoreFile() {
-      return "security/secret.client.truststore.jks";
-    }
-
-    @Override
-    public String getTrustStoreType() {
-      return "jceks";
-    }
-
-    @Override
-    public String getTrustStorePassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public boolean isTrustStoreConfigured() {
-      return true;
-    }
-
-    @Override
-    public String getKeyStoreFile() {
-      return "security/secret.client.keystore.jks";
-    }
-
-    @Override
-    public String getKeyStoreType() {
-      return "jceks";
-    }
-
-    @Override
-    public String getKeyStorePassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public String getKeyPassword() {
-      return "pa55word";
-    }
-
-    @Override
-    public boolean isKeyStoreConfigured() {
-      return true;
-    }
-
-
-    @Override
-    public void onPropertyModified(PropertyDescriptor descriptor, String oldValue, String newValue) {
-
-    }
-
-
-    @Override
-    public String getIdentifier() {
-      return description;
-    }
-  }
-
-
+public class SecurityHashProcessorTest
+{
 
   SecurityHashStandardSSLContextService sslContextService = new MockSSLContextService("sslContext");
 
   /**
    * Test of onTrigger method, of class JsonProcessor.
    */
-  @org.junit.Test
-  public void testOnTrigger() throws IOException {
+  @org.junit.Test public void testOnTrigger() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\",\"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
 
-
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new SecurityHashProcessor());
 
-    try {
+    try
+    {
       runner.addControllerService("sslContext", sslContextService);
       runner.enableControllerService(sslContextService);
-    } catch (InitializationException e) {
+    }
+    catch (InitializationException e)
+    {
       e.printStackTrace();
       assertTrue("added controller service", false);
     }
@@ -120,7 +54,6 @@ public class SecurityHashProcessorTest {
     runner.setProperty(SecurityHashProcessor.HASH_KEY_ALIAS, "jwthashkey");
     runner.setProperty(SecurityHashProcessor.HASH_ENCRYPTED_STRING_ATTRIBUTE_NAME, "out");
     runner.setProperty(SecurityHashProcessor.HASH_RAW_STRING, "${raw}");
-
 
     MockFlowFile ff = new MockFlowFile(1231312L);
     Map<String, String> attribsMap = new HashMap<>(ff.getAttributes());
@@ -149,5 +82,69 @@ public class SecurityHashProcessorTest {
 
   }
 
+  class MockSSLContextService extends SecurityHashStandardSSLContextService
+  {
+    String description;
+
+    public MockSSLContextService(String description)
+    {
+      this.description = description;
+    }
+
+    @Override public String getTrustStoreFile()
+    {
+      return "security/secret.client.truststore.jks";
+    }
+
+    @Override public String getTrustStoreType()
+    {
+      return "jceks";
+    }
+
+    @Override public String getTrustStorePassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public boolean isTrustStoreConfigured()
+    {
+      return true;
+    }
+
+    @Override public String getKeyStoreFile()
+    {
+      return "security/secret.client.keystore.jks";
+    }
+
+    @Override public String getKeyStoreType()
+    {
+      return "jceks";
+    }
+
+    @Override public String getKeyStorePassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public String getKeyPassword()
+    {
+      return "pa55word";
+    }
+
+    @Override public boolean isKeyStoreConfigured()
+    {
+      return true;
+    }
+
+    @Override public void onPropertyModified(PropertyDescriptor descriptor, String oldValue, String newValue)
+    {
+
+    }
+
+    @Override public String getIdentifier()
+    {
+      return description;
+    }
+  }
 
 }

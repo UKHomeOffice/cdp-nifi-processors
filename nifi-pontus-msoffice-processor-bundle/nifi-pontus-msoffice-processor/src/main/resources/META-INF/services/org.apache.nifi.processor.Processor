@@ -1,3 +1,2 @@
-com.pontusvision.nifi.processors.CSVToJSONProcessor
-com.pontusvision.nifi.processors.PontusTinkerPopClient
-com.pontusvision.nifi.processors.PontusTinkerPopClientRecord
+com.pontusvision.nifi.processors.PontusMSOfficePPTXReaderRecord
+com.pontusvision.nifi.processors.PontusMSOfficePSTReaderRecord

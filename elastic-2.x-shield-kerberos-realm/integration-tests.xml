@@ -17,10 +17,10 @@
   -->
 
 <project name="shield-kerberos-realm"
-         xmlns:ac="antlib:net.sf.antcontrib">
+>
 
-  <import file="${elasticsearch.integ.antfile.default}"/>
+    <import file="${elasticsearch.integ.antfile.default}"/>
 
-  <target name="start-external-cluster-with-plugin" depends="setup-workspace">
-  </target>
+    <target name="start-external-cluster-with-plugin" depends="setup-workspace">
+    </target>
 </project>

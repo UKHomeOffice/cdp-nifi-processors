@@ -27,28 +27,23 @@ import org.apache.nifi.ssl.SSLContextService;
 import java.security.Key;
 import java.util.*;
 
-
 /**
  * @author Leo Martins
  */
-@Tags({"pontus","JWT", "Decoding", "JSON Web Tokens"})
-@CapabilityDescription("Decode JWT Tokens.")
-public class JWTDecoderProcessor extends JWTCreatorProcessor {
+@Tags({ "pontus", "JWT", "Decoding",
+    "JSON Web Tokens" }) @CapabilityDescription("Decode JWT Tokens.") public class JWTDecoderProcessor
+    extends JWTCreatorProcessor
+{
 
-  public static final PropertyDescriptor JWT_VAL_OFFSET = new PropertyDescriptor.Builder()
-    .name("JWT Value Offset")
-    .description("The offset to skip from either the file or attribute that has the JWT info to decode. ")
-    .defaultValue("0")
-    .required(true)
-    .expressionLanguageSupported(false)
-    .addValidator(StandardValidators.INTEGER_VALIDATOR)
-    .build();
-
+  public static final PropertyDescriptor JWT_VAL_OFFSET = new PropertyDescriptor.Builder().name("JWT Value Offset")
+      .description("The offset to skip from either the file or attribute that has the JWT info to decode. ")
+      .defaultValue("0").required(true).expressionLanguageSupported(false)
+      .addValidator(StandardValidators.INTEGER_VALIDATOR).build();
 
   Integer jwtValueOffstet = null;
 
-  @Override
-  public void init(final ProcessorInitializationContext context) {
+  @Override public void init(final ProcessorInitializationContext context)
+  {
     List<PropertyDescriptor> properties = new ArrayList<>();
     properties.add(SSL_CONTEXT);
     properties.add(JWT_KEY_ALGO);
@@ -64,22 +59,25 @@ public class JWTDecoderProcessor extends JWTCreatorProcessor {
     this.relationships = Collections.unmodifiableSet(relationships);
   }
 
-  @Override
-  public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue, final String newValue) {
+  @Override public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue,
+                                           final String newValue)
+  {
 
-    super.onPropertyModified(descriptor,oldValue,newValue);
+    super.onPropertyModified(descriptor, oldValue, newValue);
 
-    if (descriptor.equals(JWT_VAL_OFFSET)) {
+    if (descriptor.equals(JWT_VAL_OFFSET))
+    {
       jwtValueOffstet = null;
     }
   }
 
-    @Override
-  public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException {
+  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  {
     final ComponentLog log = this.getLogger();
     FlowFile flowfile = session.get();
 
-    if (flowfile == null) {
+    if (flowfile == null)
+    {
       session.transfer(session.create(), FAILURE);
       return;
 
@@ -87,29 +85,36 @@ public class JWTDecoderProcessor extends JWTCreatorProcessor {
 
     DocumentContext docCtx = null;
 
-    if (sslService == null) {
+    if (sslService == null)
+    {
       PropertyValue numBatchedEntriesPropVal = context.getProperty(SSL_CONTEXT);
       sslService = numBatchedEntriesPropVal.asControllerService(SSLContextService.class);
 
     }
 
-    try {
-      if (keyAlias == null) {
+    try
+    {
+      if (keyAlias == null)
+      {
         keyAlias = context.getProperty(JWT_KEY_ALIAS).getValue();
       }
-      if (signingKey == null) {
+      if (signingKey == null)
+      {
         signingKey = getPublicKey(sslService, keyAlias);
       }
 
-      if (keyAlgo == null) {
+      if (keyAlgo == null)
+      {
         keyAlgo = JWSAlgorithm.parse(context.getProperty(JWT_KEY_ALGO).getValue());
       }
-      if (jwtAttributeName == null){
+      if (jwtAttributeName == null)
+      {
         jwtAttributeName = context.getProperty(JWT_ATTRIBUTE_NAME).getValue();
 
       }
 
-      if (jwtValueOffstet == null){
+      if (jwtValueOffstet == null)
+      {
         jwtValueOffstet = Integer.parseInt(context.getProperty(JWT_VAL_OFFSET).getValue());
 
       }
@@ -118,42 +123,44 @@ public class JWTDecoderProcessor extends JWTCreatorProcessor {
 
       boolean useAttribute = !(jwtAttributeName == null || jwtAttributeName.length() == 0);
 
-      if (!useAttribute) {
-        jwtStr = StringReplacer.readString(session,flowfile);
+      if (!useAttribute)
+      {
+        jwtStr = StringReplacer.readString(session, flowfile);
       }
-      else{
-        jwtStr =  flowfile.getAttribute(jwtAttributeName);
+      else
+      {
+        jwtStr = flowfile.getAttribute(jwtAttributeName);
 
       }
-
 
       Key key = getPublicKey(sslService, keyAlias);
 
-
-//      JWSSigner signer = getSigner(keyAlgo,key);
+      //      JWSSigner signer = getSigner(keyAlgo,key);
 
       //To parse the JWS and verify it, e.g. on client-side
-      JWSObject  jwsObject = JWSObject.parse(jwtStr.substring(jwtValueOffstet));
+      JWSObject jwsObject = JWSObject.parse(jwtStr.substring(jwtValueOffstet));
 
       JWSVerifier verifier = getVerifier(keyAlgo, key);
 
-      if (!jwsObject.verify(verifier)){
+      if (!jwsObject.verify(verifier))
+      {
         log.error("Failed to verify the JWT with the supplied key.");
         session.transfer(flowfile, FAILURE);
         return;
 
       }
-      if (useAttribute) {
+      if (useAttribute)
+      {
         flowfile = writeDataToAttrib(flowfile, session, jwtAttributeName, jwsObject.getPayload().toString());
       }
-      else {
-        flowfile = writeDataToFile(flowfile,session, jwsObject.getPayload().toString());
+      else
+      {
+        flowfile = writeDataToFile(flowfile, session, jwsObject.getPayload().toString());
       }
 
-
-
-
-    } catch (Exception e) {
+    }
+    catch (Exception e)
+    {
 
       log.error("Failed to get signing key from sslService " + sslService.toString(), e);
       session.transfer(flowfile, FAILURE);
@@ -162,11 +169,9 @@ public class JWTDecoderProcessor extends JWTCreatorProcessor {
 
     session.transfer(flowfile, SUCCESS);
 
-
-//    session.remove(flowfile);
-//    session.commit();
+    //    session.remove(flowfile);
+    //    session.commit();
 
   }
-
 
 }

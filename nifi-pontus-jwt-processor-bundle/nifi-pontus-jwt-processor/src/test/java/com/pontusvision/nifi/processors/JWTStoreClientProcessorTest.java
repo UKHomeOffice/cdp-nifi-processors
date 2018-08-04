@@ -22,17 +22,16 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author phillip
  */
-public class JWTStoreClientProcessorTest {
+public class JWTStoreClientProcessorTest
+{
   TestingServer zkServer;
 
-  @Before
-  public void setUp() throws Exception
+  @Before public void setUp() throws Exception
   {
     zkServer = new TestingServer(52181, true);
   }
 
-  @After
-  public void tearDown() throws Exception
+  @After public void tearDown() throws Exception
   {
     zkServer.stop();
   }
@@ -40,12 +39,11 @@ public class JWTStoreClientProcessorTest {
   /**
    * Test of onTrigger method, of class JsonProcessor.
    */
-  @org.junit.Test
-  public void testOnTrigger() throws IOException {
+  @org.junit.Test public void testOnTrigger() throws IOException
+  {
 
     String rawJwtStr = "{\"sub\":\"bob\",\"iss\":\"Pontus\",\"bizctx\":\"/blah/blah/blah\"}";
     // Content to be mock a jwtRequest file
-
 
     // Generate a test runner to mock a processor in a flow
     TestRunner runner = TestRunners.newTestRunner(new JWTStoreClientProcessor());
@@ -65,9 +63,10 @@ public class JWTStoreClientProcessorTest {
     // o the runner
     runner.enqueue(ff);
 
-    String rawJwt2 = runner.getProcessContext().getProperty(JWTStoreClientProcessor.JWT_JSON).evaluateAttributeExpressions(ff).getValue();
+    String rawJwt2 = runner.getProcessContext().getProperty(JWTStoreClientProcessor.JWT_JSON)
+        .evaluateAttributeExpressions(ff).getValue();
 
-    assertTrue ("ensure rawJWT is still the same", rawJwtStr.equals(rawJwt2));
+    assertTrue("ensure rawJWT is still the same", rawJwtStr.equals(rawJwt2));
 
     // Run the enqueued content, it also takes an int = number of contents queued
     runner.run(1);
@@ -76,10 +75,6 @@ public class JWTStoreClientProcessorTest {
 
     assertTrue("1 match", headerResults.size() == 1);
 
-
-
-
   }
-
 
 }
