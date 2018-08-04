@@ -17,7 +17,7 @@
         <module>nifi-pontus-jwt-processor-bundle</module>
 
         <module>nifi-pontus-gremlin-processor-bundle</module>
-        <module>nifi-pontus-msoffice-processor-bundle</module>
+        <!--module>nifi-pontus-msoffice-processor-bundle</module -->
     </modules>
 
 
