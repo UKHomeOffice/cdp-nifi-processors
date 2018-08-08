@@ -107,9 +107,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
       .build();
 
   final PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
-      .name("Tinkerpop Client configuration URI")
-      .description("Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).").required(false)
-      .addValidator(StandardValidators.URI_VALIDATOR)
+      .name("Tinkerpop Client configuration URI").description(
+          "Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).")
+      .required(false).addValidator(StandardValidators.URI_VALIDATOR)
       //            .identifiesControllerService(HBaseClientService.class)
       .build();
 
@@ -197,7 +197,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   protected void handleError(Throwable e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
-//    session.transfer(flowFile, REL_FAILURE);
+    //    session.transfer(flowFile, REL_FAILURE);
 
     if (flowFile != null)
     {
@@ -348,34 +348,44 @@ public class PontusTinkerPopClient extends AbstractProcessor
       //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
     }
   }
-  protected static String getAbsolutePath(final File configParent, final String file) {
+
+  protected static String getAbsolutePath(final File configParent, final String file)
+  {
     final File storeDirectory = new File(file);
-    if (!storeDirectory.isAbsolute()) {
+    if (!storeDirectory.isAbsolute())
+    {
       String newFile = configParent.getAbsolutePath() + File.separator + file;
       return newFile;
-    } else {
+    }
+    else
+    {
       return file;
     }
   }
 
-  protected static CommonsConfiguration getLocalConfiguration(File file,String user, String pass) {
+  protected static CommonsConfiguration getLocalConfiguration(File file, String user, String pass)
+  {
     Preconditions.checkArgument(file != null && file.exists() && file.isFile() && file.canRead(),
         "Need to specify a readable configuration file, but was given: %s", file.toString());
 
-    try {
+    try
+    {
       PropertiesConfiguration configuration = new PropertiesConfiguration(file);
 
       final File tmpParent = file.getParentFile();
       final File configParent;
 
-      if (null == tmpParent) {
+      if (null == tmpParent)
+      {
         /*
          * null usually means we were given a JanusGraph config file path
          * string like "foo.properties" that refers to the current
          * working directory of the process.
          */
         configParent = new File(System.getProperty("user.dir"));
-      } else {
+      }
+      else
+      {
         configParent = tmpParent;
       }
 
@@ -383,61 +393,65 @@ public class PontusTinkerPopClient extends AbstractProcessor
       Preconditions.checkArgument(configParent.isDirectory());
 
       // TODO this mangling logic is a relic from the hardcoded string days; it should be deleted and rewritten as a setting on ConfigOption
-      final Pattern p = Pattern.compile("(" +
-          Pattern.quote(STORAGE_NS.getName()) + "\\..*" +
-          "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|" +
-          Pattern.quote(STORAGE_CONF_FILE.getName()) + ")"
-          + "|" +
-          Pattern.quote(INDEX_NS.getName()) + "\\..*" +
-          "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" +
-          Pattern.quote(INDEX_CONF_FILE.getName()) +  ")"
-          + ")");
+      final Pattern p = Pattern.compile(
+          "(" + Pattern.quote(STORAGE_NS.getName()) + "\\..*" + "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|"
+              + Pattern.quote(STORAGE_CONF_FILE.getName()) + ")" + "|" + Pattern.quote(INDEX_NS.getName()) + "\\..*"
+              + "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" + Pattern.quote(INDEX_CONF_FILE.getName()) + ")"
+              + ")");
 
       final Iterator<String> keysToMangle = Iterators
           .filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
 
-      while (keysToMangle.hasNext()) {
+      while (keysToMangle.hasNext())
+      {
         String k = keysToMangle.next();
         Preconditions.checkNotNull(k);
         final String s = configuration.getString(k);
-        Preconditions.checkArgument(org.apache.commons.lang.StringUtils.isNotBlank(s),"Invalid Configuration: key %s has null empty value",k);
-        configuration.setProperty(k,getAbsolutePath(configParent,s));
+        Preconditions.checkArgument(org.apache.commons.lang.StringUtils.isNotBlank(s),
+            "Invalid Configuration: key %s has null empty value", k);
+        configuration.setProperty(k, getAbsolutePath(configParent, s));
       }
       return new CommonsConfiguration(configuration);
-    } catch (ConfigurationException e) {
+    }
+    catch (ConfigurationException e)
+    {
       throw new IllegalArgumentException("Could not load configuration at: " + file, e);
     }
   }
 
-  public  ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
+  public ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
   {
     final ComponentLog log = this.getLogger();
 
     try
     {
       settings = Settings.read(new URI(confFileURI).toURL().openStream());
-    }catch(Throwable t){
-      log.warn("Failed to open " + confFileURI + "; attempting default /opt/pontus/pontus-graph/current/conf/gremlin-server.yml; error: " + t.getMessage());
+    }
+    catch (Throwable t)
+    {
+      log.warn("Failed to open " + confFileURI
+          + "; attempting default /opt/pontus/pontus-graph/current/conf/gremlin-server.yml; error: " + t.getMessage());
 
-      settings = Settings.read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
+      settings = Settings
+          .read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
     }
     serializersSettings = settings.serializers;
 
-    String gconfFileStr = (String) settings.graphs.getOrDefault("graph","/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
+    String gconfFileStr = (String) settings.graphs
+        .getOrDefault("graph", "/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
 
     File gconfFile = new File(gconfFileStr);
-    CommonsConfiguration conf = getLocalConfiguration(gconfFile,null,null);
+    CommonsConfiguration conf = getLocalConfiguration(gconfFile, null, null);
 
     JanusGraph graph = JanusGraphFactory.open(conf);
 
     embeddedServer = new ServerGremlinExecutor(settings, null, null);
-    embeddedServer.getGraphManager().putTraversalSource("g",graph.traversal());
-    embeddedServer.getGraphManager().putGraph("graph",graph);
+    embeddedServer.getGraphManager().putTraversalSource("g", graph.traversal());
+    embeddedServer.getGraphManager().putGraph("graph", graph);
 
     configureSerializers();
 
     return embeddedServer;
-
 
   }
 
@@ -518,10 +532,25 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (!useEmbeddedServer)
       {
-        cluster = Cluster.open(conf);
 
-        Client unaliasedClient = cluster.connect();
-        client = unaliasedClient; //.alias(aliasStr);
+        try
+        {
+          URI uri = new URI(confFileURI);
+
+          cluster = Cluster.build(new File(uri)).create();
+
+          //            Cluster.open(conf);
+
+          Client unaliasedClient = cluster.connect();
+          client = unaliasedClient; //.alias(aliasStr);
+
+        }
+        catch (URISyntaxException e)
+        {
+          log.error("Failed create client with  URI config " + confFileURI, e);
+          return;
+
+        }
       }
     }
 
@@ -574,7 +603,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       final String mimeType = pair.getValue0();
 
       MessageSerializer ser = pair.getValue1();
-      if (ser instanceof MessageTextSerializer )
+      if (ser instanceof MessageTextSerializer)
       {
         final MessageTextSerializer serializer = (MessageTextSerializer) ser;
 
@@ -620,7 +649,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
       throws ExecutionException, InterruptedException, IOException, URISyntaxException
   {
 
-    if (useEmbeddedServer && embeddedServer == null){
+    if (useEmbeddedServer && embeddedServer == null)
+    {
       embeddedServer = createEmbeddedServer();
     }
     if (useEmbeddedServer && embeddedServer != null)
@@ -745,7 +775,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
 
-      byte[] res = runQuery(bindings,queryString);
+      byte[] res = runQuery(bindings, queryString);
 
       localFlowFile = session.write(localFlowFile, out -> out.write(res));
 
@@ -760,11 +790,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 
-
-
   }
 
-  private String getStackTrace(Throwable e) {
+  private String getStackTrace(Throwable e)
+  {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
     e.printStackTrace(pw);
