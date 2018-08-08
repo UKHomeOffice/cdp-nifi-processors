@@ -10,9 +10,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.DefaultConfigurationBuilder;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -107,9 +105,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
       .build();
 
   final PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
-      .name("Tinkerpop Client configuration URI")
-      .description("Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).").required(false)
-      .addValidator(StandardValidators.URI_VALIDATOR)
+      .name("Tinkerpop Client configuration URI").description(
+          "Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).")
+      .required(false).addValidator(StandardValidators.URI_VALIDATOR)
       //            .identifiesControllerService(HBaseClientService.class)
       .build();
 
@@ -171,7 +169,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   //    private Pattern colonSplitPattern = Pattern.compile(":");
 
   String confFileURI = null;
-  Configuration conf = null;
+//  Configuration conf = null;
 
   String queryStr = null;
   String queryAttribPrefixStr = "pg_";
@@ -197,7 +195,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   protected void handleError(Throwable e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
-//    session.transfer(flowFile, REL_FAILURE);
+    //    session.transfer(flowFile, REL_FAILURE);
 
     if (flowFile != null)
     {
@@ -311,71 +309,81 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     }
 
-    else
-    {
-      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
-
-      conf = confBuilder.getConfiguration(false);
-      conf.setProperty("port", 8182);
-      conf.setProperty("nioPoolSize", 1);
-      conf.setProperty("workerPoolSize", 1);
-      //                    conf.setProperty("username", "root");
-      //                    conf.setProperty("password", "pa55word");
-      //                    conf.setProperty("jaasEntry", "tinkerpop");
-      //                    conf.setProperty("protocol", "GSSAPI");
-      conf.setProperty("hosts", "127.0.0.1");
-      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
-      conf.setProperty("serializer.config",
-          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
-
-      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
-      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
-
-      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
-      //        conf.setProperty("connectionPool.enableSsl", false);
-      //        conf.setProperty("connectionPool.trustCertChainFile", "");
-      conf.setProperty("connectionPool.minSize", 1);
-      conf.setProperty("connectionPool.maxSize", 1);
-      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
-      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
-      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
-      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
-      conf.setProperty("connectionPool.maxContentLength", 2000000);
-      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
-      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
-      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
-    }
+//    else
+//    {
+//      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
+//
+//      conf = confBuilder.getConfiguration(false);
+//      conf.setProperty("port", 8182);
+//      conf.setProperty("nioPoolSize", 1);
+//      conf.setProperty("workerPoolSize", 1);
+//      //                    conf.setProperty("username", "root");
+//      //                    conf.setProperty("password", "pa55word");
+//      //                    conf.setProperty("jaasEntry", "tinkerpop");
+//      //                    conf.setProperty("protocol", "GSSAPI");
+//      conf.setProperty("hosts", "127.0.0.1");
+//      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
+//      conf.setProperty("serializer.config",
+//          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
+//
+//      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
+//      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+//
+//      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
+//      //        conf.setProperty("connectionPool.enableSsl", false);
+//      //        conf.setProperty("connectionPool.trustCertChainFile", "");
+//      conf.setProperty("connectionPool.minSize", 1);
+//      conf.setProperty("connectionPool.maxSize", 1);
+//      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
+//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+//      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
+//      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
+//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+//      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
+//      conf.setProperty("connectionPool.maxContentLength", 2000000);
+//      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
+//      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
+//      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+//    }
   }
-  protected static String getAbsolutePath(final File configParent, final String file) {
+
+  protected static String getAbsolutePath(final File configParent, final String file)
+  {
     final File storeDirectory = new File(file);
-    if (!storeDirectory.isAbsolute()) {
+    if (!storeDirectory.isAbsolute())
+    {
       String newFile = configParent.getAbsolutePath() + File.separator + file;
       return newFile;
-    } else {
+    }
+    else
+    {
       return file;
     }
   }
 
-  protected static CommonsConfiguration getLocalConfiguration(File file,String user, String pass) {
+  protected static CommonsConfiguration getLocalConfiguration(File file, String user, String pass)
+  {
     Preconditions.checkArgument(file != null && file.exists() && file.isFile() && file.canRead(),
         "Need to specify a readable configuration file, but was given: %s", file.toString());
 
-    try {
+    try
+    {
       PropertiesConfiguration configuration = new PropertiesConfiguration(file);
 
       final File tmpParent = file.getParentFile();
       final File configParent;
 
-      if (null == tmpParent) {
+      if (null == tmpParent)
+      {
         /*
          * null usually means we were given a JanusGraph config file path
          * string like "foo.properties" that refers to the current
          * working directory of the process.
          */
         configParent = new File(System.getProperty("user.dir"));
-      } else {
+      }
+      else
+      {
         configParent = tmpParent;
       }
 
@@ -383,61 +391,65 @@ public class PontusTinkerPopClient extends AbstractProcessor
       Preconditions.checkArgument(configParent.isDirectory());
 
       // TODO this mangling logic is a relic from the hardcoded string days; it should be deleted and rewritten as a setting on ConfigOption
-      final Pattern p = Pattern.compile("(" +
-          Pattern.quote(STORAGE_NS.getName()) + "\\..*" +
-          "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|" +
-          Pattern.quote(STORAGE_CONF_FILE.getName()) + ")"
-          + "|" +
-          Pattern.quote(INDEX_NS.getName()) + "\\..*" +
-          "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" +
-          Pattern.quote(INDEX_CONF_FILE.getName()) +  ")"
-          + ")");
+      final Pattern p = Pattern.compile(
+          "(" + Pattern.quote(STORAGE_NS.getName()) + "\\..*" + "(" + Pattern.quote(STORAGE_DIRECTORY.getName()) + "|"
+              + Pattern.quote(STORAGE_CONF_FILE.getName()) + ")" + "|" + Pattern.quote(INDEX_NS.getName()) + "\\..*"
+              + "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" + Pattern.quote(INDEX_CONF_FILE.getName()) + ")"
+              + ")");
 
       final Iterator<String> keysToMangle = Iterators
           .filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
 
-      while (keysToMangle.hasNext()) {
+      while (keysToMangle.hasNext())
+      {
         String k = keysToMangle.next();
         Preconditions.checkNotNull(k);
         final String s = configuration.getString(k);
-        Preconditions.checkArgument(org.apache.commons.lang.StringUtils.isNotBlank(s),"Invalid Configuration: key %s has null empty value",k);
-        configuration.setProperty(k,getAbsolutePath(configParent,s));
+        Preconditions.checkArgument(org.apache.commons.lang.StringUtils.isNotBlank(s),
+            "Invalid Configuration: key %s has null empty value", k);
+        configuration.setProperty(k, getAbsolutePath(configParent, s));
       }
       return new CommonsConfiguration(configuration);
-    } catch (ConfigurationException e) {
+    }
+    catch (ConfigurationException e)
+    {
       throw new IllegalArgumentException("Could not load configuration at: " + file, e);
     }
   }
 
-  public  ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
+  public ServerGremlinExecutor createEmbeddedServer() throws URISyntaxException, IOException
   {
     final ComponentLog log = this.getLogger();
 
     try
     {
       settings = Settings.read(new URI(confFileURI).toURL().openStream());
-    }catch(Throwable t){
-      log.warn("Failed to open " + confFileURI + "; attempting default /opt/pontus/pontus-graph/current/conf/gremlin-server.yml; error: " + t.getMessage());
+    }
+    catch (Throwable t)
+    {
+      log.warn("Failed to open " + confFileURI
+          + "; attempting default /opt/pontus/pontus-graph/current/conf/gremlin-server.yml; error: " + t.getMessage());
 
-      settings = Settings.read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
+      settings = Settings
+          .read(new URI("file:///opt/pontus/pontus-graph/current/conf/gremlin-server.yml").toURL().openStream());
     }
     serializersSettings = settings.serializers;
 
-    String gconfFileStr = (String) settings.graphs.getOrDefault("graph","/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
+    String gconfFileStr = (String) settings.graphs
+        .getOrDefault("graph", "/opt/pontus/pontus-graph/current/conf/janusgraph-hbase-es.properties");
 
     File gconfFile = new File(gconfFileStr);
-    CommonsConfiguration conf = getLocalConfiguration(gconfFile,null,null);
+    CommonsConfiguration conf = getLocalConfiguration(gconfFile, null, null);
 
     JanusGraph graph = JanusGraphFactory.open(conf);
 
     embeddedServer = new ServerGremlinExecutor(settings, null, null);
-    embeddedServer.getGraphManager().putTraversalSource("g",graph.traversal());
-    embeddedServer.getGraphManager().putGraph("graph",graph);
+    embeddedServer.getGraphManager().putTraversalSource("g", graph.traversal());
+    embeddedServer.getGraphManager().putGraph("graph", graph);
 
     configureSerializers();
 
     return embeddedServer;
-
 
   }
 
@@ -485,12 +497,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
           {
             createEmbeddedServer();
           }
-          else
-          {
-            URI uri = new URI(confFileURI);
-            DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
-            conf = confBuilder.getConfiguration(true);
-          }
         }
         catch (Exception e)
         {
@@ -518,10 +524,25 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (!useEmbeddedServer)
       {
-        cluster = Cluster.open(conf);
 
-        Client unaliasedClient = cluster.connect();
-        client = unaliasedClient; //.alias(aliasStr);
+        try
+        {
+          URI uri = new URI(confFileURI);
+
+          cluster = Cluster.build(new File(uri)).create();
+
+          //            Cluster.open(conf);
+
+          Client unaliasedClient = cluster.connect();
+          client = unaliasedClient; //.alias(aliasStr);
+
+        }
+        catch (URISyntaxException e)
+        {
+          log.error("Failed create client with  URI config " + confFileURI, e);
+          return;
+
+        }
       }
     }
 
@@ -574,7 +595,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       final String mimeType = pair.getValue0();
 
       MessageSerializer ser = pair.getValue1();
-      if (ser instanceof MessageTextSerializer )
+      if (ser instanceof MessageTextSerializer)
       {
         final MessageTextSerializer serializer = (MessageTextSerializer) ser;
 
@@ -620,7 +641,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
       throws ExecutionException, InterruptedException, IOException, URISyntaxException
   {
 
-    if (useEmbeddedServer && embeddedServer == null){
+    if (useEmbeddedServer && embeddedServer == null)
+    {
       embeddedServer = createEmbeddedServer();
     }
     if (useEmbeddedServer && embeddedServer != null)
@@ -745,7 +767,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
 
-      byte[] res = runQuery(bindings,queryString);
+      byte[] res = runQuery(bindings, queryString);
 
       localFlowFile = session.write(localFlowFile, out -> out.write(res));
 
@@ -760,11 +782,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 
-
-
   }
 
-  private String getStackTrace(Throwable e) {
+  private String getStackTrace(Throwable e)
+  {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
     e.printStackTrace(pw);

@@ -6,6 +6,7 @@ import org.apache.nifi.annotation.behavior.TriggerSerially;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.logging.ComponentLog;
 import org.apache.nifi.processor.*;
@@ -26,11 +27,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
+import static org.apache.commons.lang3.StringEscapeUtils.escapeJson;
+
 //import java.util.*;
 @TriggerSerially @SupportsBatching @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 //@SideEffectFree
-@Tags({ "Pontus", "MSOffice", "Outlook", "PST" })
-@CapabilityDescription("Reads data from PST Files serialized in a flow file, and creates smaller flow files with either the text or individual e-mails.")
+@Tags({ "Pontus", "MSOffice", "Outlook",
+    "PST" }) @CapabilityDescription("Reads data from PST Files serialized in a flow file, and creates smaller flow files with either the text or individual e-mails.")
 
 public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
 {
@@ -53,11 +56,11 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
       return true;
     }
 
-    @Override public void parseEmbedded(InputStream stream, ContentHandler ch, Metadata metadata,
-                                        boolean outputHtml) throws SAXException, IOException
+    @Override public void parseEmbedded(InputStream stream, ContentHandler ch, Metadata metadata, boolean outputHtml)
+        throws SAXException, IOException
     {
       ToTextContentHandler parserHandler = new ToTextContentHandler();
-      super.parseEmbedded(stream,parserHandler,metadata,false);
+      super.parseEmbedded(stream, parserHandler, metadata, false);
       FlowFile flowfile = session.create();
 
       String[] names = metadata.names();
@@ -72,9 +75,26 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
         attributes.put(names[i], val);
       }
 
+      String data = parserHandler.toString();
+
+      if (formatContent)
+      {
+        data = String.format(formatContentPattern, escapeJson(data));
+      }
+
+      if (addContentToAttribute)
+      {
+        attributes.put("CONTENT_ATTRIB", data);
+      }
+
       flowfile = session.putAllAttributes(flowfile, attributes);
 
-      flowfile = session.write(flowfile, out -> out.write( parserHandler.toString().getBytes()));
+      if (!addContentToFlowFile)
+      {
+
+        final String contentStr = data;
+        flowfile = session.write(flowfile, out -> out.write(contentStr.getBytes()));
+      }
 
       parserHandler.endDocument();
       session.transfer(flowfile, PARSED);
@@ -82,11 +102,50 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
     }
   }
 
-  final PropertyDescriptor BREAK_INTO_MESSAGES = new PropertyDescriptor.Builder().name("Break into Messages")
-      .description("Specifies whether the PST file should be broken into e-mail messages.").required(false)
-      .addValidator(StandardValidators.BOOLEAN_VALIDATOR).defaultValue("true").build();
+  public static final PropertyDescriptor ADD_CONTENT_TO_FLOWFILE = new PropertyDescriptor.Builder().name("Add content to attribute")
+      .description(
+          "Specifies whether the contents of each email should be added to a CONTENT_ATTRIBUTE.  If set to false, the e-mail contents are sent in the flow file.")
+      .required(false).addValidator(StandardValidators.BOOLEAN_VALIDATOR).defaultValue("true").build();
 
-  final PropertyDescriptor EMAIL_HEADERS_FILTER_REGEX = new PropertyDescriptor.Builder().name("Email Headers regex")
+  public static final PropertyDescriptor ADD_CONTENT_TO_ATTRIB = new PropertyDescriptor.Builder().name("Add content to attribute")
+      .description(
+          "Specifies whether the contents of each email should be added to a CONTENT_ATTRIBUTE.  If set to false, the e-mail contents are sent in the flow file.")
+      .required(false).addValidator(StandardValidators.BOOLEAN_VALIDATOR).defaultValue("true").build();
+
+  public static String CONTENT_FORMATTER_DEFAULT = "{\"text\":\"%s\","
+      + "\"features\":{\"entities\":{}}}";
+
+  public static final PropertyDescriptor CONTENT_FORMATTER = new PropertyDescriptor.Builder().name("Content String Formatter")
+      .description(
+          "Add the contents with special formatting; only one %s placeholder is allowed, and is replaced with the text; if set to an empty string, no formatting is done.")
+      .required(false).addValidator((subject, input, context) -> {
+        final boolean isValid;
+        String explanation = "";
+        if (input == null || input.length() == 0)
+        {
+          isValid = true;
+        }
+        else if (!input.contains("%s"))
+        {
+          isValid = false;
+          explanation = "Could not find any %s replacements; the value must either be empty, or contain only one %s to be used as a replacement";
+        }
+        else if (input.indexOf("%s") != input.lastIndexOf("%s"))
+        {
+          isValid = false;
+          explanation = "Found more than one %s replacement; the value must either be empty, or contain only one %s to be used as a replacement";
+
+        }
+        else
+        {
+          isValid = true;
+        }
+
+        return new ValidationResult.Builder().subject(subject).input(input).valid(isValid).explanation(explanation)
+            .build();
+      }).defaultValue(CONTENT_FORMATTER_DEFAULT).build();
+
+  public static final PropertyDescriptor EMAIL_HEADERS_FILTER_REGEX = new PropertyDescriptor.Builder().name("Email Headers regex")
       .description("Specifies the filter to match e-mail message headers that will be processed.").required(false)
       .addValidator(StandardValidators.REGULAR_EXPRESSION_VALIDATOR).defaultValue(".*").build();
 
@@ -99,23 +158,50 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
   public static final Relationship FAILURE = new Relationship.Builder().name("FAILURE")
       .description("Failure relationship").build();
 
-
   protected List<PropertyDescriptor> descriptors;
 
   protected Set<Relationship> relationships;
 
   protected ComponentLog logger;
 
+  protected boolean addContentToAttribute = true;
+  protected boolean addContentToFlowFile = true;
+  protected boolean formatContent = true;
+  protected String formatContentPattern = CONTENT_FORMATTER_DEFAULT;
 
+  @Override public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue,
+                                           final String newValue)
+  {
+    if (descriptor.equals(ADD_CONTENT_TO_ATTRIB))
+    {
+
+      addContentToAttribute = Boolean.parseBoolean(newValue);
+    }
+    else if (descriptor.equals(ADD_CONTENT_TO_FLOWFILE))
+    {
+
+      addContentToFlowFile = Boolean.parseBoolean(newValue);
+    }
+
+    else if (descriptor.equals(CONTENT_FORMATTER))
+    {
+
+      formatContentPattern = newValue;
+      formatContent = formatContentPattern.length() > 0;
+    }
+
+  }
 
   @Override protected void init(final ProcessorInitializationContext context)
   {
-    final List<PropertyDescriptor> descriptors = new ArrayList<PropertyDescriptor>();
-    descriptors.add(BREAK_INTO_MESSAGES);
+    final List<PropertyDescriptor> descriptors = new ArrayList<>();
+    descriptors.add(ADD_CONTENT_TO_ATTRIB);
+    descriptors.add(ADD_CONTENT_TO_FLOWFILE);
+    descriptors.add(CONTENT_FORMATTER);
     descriptors.add(EMAIL_HEADERS_FILTER_REGEX);
     this.descriptors = Collections.unmodifiableList(descriptors);
 
-    final Set<Relationship> relationships = new HashSet<Relationship>();
+    final Set<Relationship> relationships = new HashSet<>();
     relationships.add(SUCCESS);
     relationships.add(FAILURE);
     relationships.add(PARSED);
@@ -123,9 +209,7 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
 
     logger = context.getLogger();
 
-
   }
-
 
   @Override public Set<Relationship> getRelationships()
   {
@@ -136,7 +220,6 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
   {
     return descriptors;
   }
-
 
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
   {
@@ -165,13 +248,12 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
 
           ParseContext parserContext = new ParseContext();
 
-          EmbeddedTrackingExtrator trackingExtrator = new EmbeddedTrackingExtrator(parserContext,session,originalAttributes);
+          EmbeddedTrackingExtrator trackingExtrator = new EmbeddedTrackingExtrator(parserContext, session,
+              originalAttributes);
           parserContext.set(EmbeddedDocumentExtractor.class, trackingExtrator);
           parserContext.set(Parser.class, new AutoDetectParser());
 
           parser.parse(in, parserHandler, parserMetadata, parserContext);
-
-
 
         }
         catch (Exception ex)
@@ -179,15 +261,14 @@ public class PontusMSOfficePSTReaderRecord extends AbstractProcessor
         {
           ex.printStackTrace();
           logger.error("Failed to read PST File: ", ex);
-//          session.transfer(original, FAILURE);
+          //          session.transfer(original, FAILURE);
           throw new IOException(ex);
         }
       });
 
-
       session.transfer(original, SUCCESS);
 
-//      session.remove(original);
+      //      session.remove(original);
 
     }
     catch (Throwable t)
