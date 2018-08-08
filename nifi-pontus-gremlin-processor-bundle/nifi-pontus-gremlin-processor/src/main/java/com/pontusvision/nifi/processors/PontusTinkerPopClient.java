@@ -10,9 +10,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.DefaultConfigurationBuilder;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
@@ -171,7 +169,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   //    private Pattern colonSplitPattern = Pattern.compile(":");
 
   String confFileURI = null;
-  Configuration conf = null;
+//  Configuration conf = null;
 
   String queryStr = null;
   String queryAttribPrefixStr = "pg_";
@@ -311,42 +309,42 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     }
 
-    else
-    {
-      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
-
-      conf = confBuilder.getConfiguration(false);
-      conf.setProperty("port", 8182);
-      conf.setProperty("nioPoolSize", 1);
-      conf.setProperty("workerPoolSize", 1);
-      //                    conf.setProperty("username", "root");
-      //                    conf.setProperty("password", "pa55word");
-      //                    conf.setProperty("jaasEntry", "tinkerpop");
-      //                    conf.setProperty("protocol", "GSSAPI");
-      conf.setProperty("hosts", "127.0.0.1");
-      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
-      conf.setProperty("serializer.config",
-          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
-
-      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
-      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
-
-      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
-      //        conf.setProperty("connectionPool.enableSsl", false);
-      //        conf.setProperty("connectionPool.trustCertChainFile", "");
-      conf.setProperty("connectionPool.minSize", 1);
-      conf.setProperty("connectionPool.maxSize", 1);
-      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
-      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
-      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
-      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
-      conf.setProperty("connectionPool.maxContentLength", 2000000);
-      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
-      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
-      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
-    }
+//    else
+//    {
+//      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
+//
+//      conf = confBuilder.getConfiguration(false);
+//      conf.setProperty("port", 8182);
+//      conf.setProperty("nioPoolSize", 1);
+//      conf.setProperty("workerPoolSize", 1);
+//      //                    conf.setProperty("username", "root");
+//      //                    conf.setProperty("password", "pa55word");
+//      //                    conf.setProperty("jaasEntry", "tinkerpop");
+//      //                    conf.setProperty("protocol", "GSSAPI");
+//      conf.setProperty("hosts", "127.0.0.1");
+//      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
+//      conf.setProperty("serializer.config",
+//          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
+//
+//      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
+//      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+//
+//      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
+//      //        conf.setProperty("connectionPool.enableSsl", false);
+//      //        conf.setProperty("connectionPool.trustCertChainFile", "");
+//      conf.setProperty("connectionPool.minSize", 1);
+//      conf.setProperty("connectionPool.maxSize", 1);
+//      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
+//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+//      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
+//      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
+//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+//      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
+//      conf.setProperty("connectionPool.maxContentLength", 2000000);
+//      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
+//      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
+//      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+//    }
   }
 
   protected static String getAbsolutePath(final File configParent, final String file)
@@ -498,12 +496,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
           if (useEmbeddedServer)
           {
             createEmbeddedServer();
-          }
-          else
-          {
-            URI uri = new URI(confFileURI);
-            DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder(new File(uri));
-            conf = confBuilder.getConfiguration(true);
           }
         }
         catch (Exception e)
