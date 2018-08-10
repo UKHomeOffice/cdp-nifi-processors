@@ -31,12 +31,12 @@ import org.apache.nifi.util.StringUtils;
 import org.apache.tinkerpop.gremlin.driver.*;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseMessage;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseStatusCode;
+import org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0;
 import org.apache.tinkerpop.gremlin.driver.ser.MessageTextSerializer;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.server.Settings;
 import org.apache.tinkerpop.gremlin.server.util.ServerGremlinExecutor;
 import org.apache.tinkerpop.gremlin.structure.Graph;
-import org.apache.tinkerpop.gremlin.structure.io.graphson.GraphSONWriter;
 import org.apache.tinkerpop.gremlin.util.function.FunctionUtils;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 import org.janusgraph.core.JanusGraph;
@@ -46,7 +46,10 @@ import org.javatuples.Pair;
 
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -169,7 +172,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   //    private Pattern colonSplitPattern = Pattern.compile(":");
 
   String confFileURI = null;
-//  Configuration conf = null;
+  //  Configuration conf = null;
 
   String queryStr = null;
   String queryAttribPrefixStr = "pg_";
@@ -309,42 +312,42 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
     }
 
-//    else
-//    {
-//      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
-//
-//      conf = confBuilder.getConfiguration(false);
-//      conf.setProperty("port", 8182);
-//      conf.setProperty("nioPoolSize", 1);
-//      conf.setProperty("workerPoolSize", 1);
-//      //                    conf.setProperty("username", "root");
-//      //                    conf.setProperty("password", "pa55word");
-//      //                    conf.setProperty("jaasEntry", "tinkerpop");
-//      //                    conf.setProperty("protocol", "GSSAPI");
-//      conf.setProperty("hosts", "127.0.0.1");
-//      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
-//      conf.setProperty("serializer.config",
-//          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
-//
-//      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
-//      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
-//
-//      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
-//      //        conf.setProperty("connectionPool.enableSsl", false);
-//      //        conf.setProperty("connectionPool.trustCertChainFile", "");
-//      conf.setProperty("connectionPool.minSize", 1);
-//      conf.setProperty("connectionPool.maxSize", 1);
-//      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
-//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-//      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
-//      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
-//      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
-//      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
-//      conf.setProperty("connectionPool.maxContentLength", 2000000);
-//      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
-//      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
-//      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
-//    }
+    //    else
+    //    {
+    //      DefaultConfigurationBuilder confBuilder = new DefaultConfigurationBuilder();
+    //
+    //      conf = confBuilder.getConfiguration(false);
+    //      conf.setProperty("port", 8182);
+    //      conf.setProperty("nioPoolSize", 1);
+    //      conf.setProperty("workerPoolSize", 1);
+    //      //                    conf.setProperty("username", "root");
+    //      //                    conf.setProperty("password", "pa55word");
+    //      //                    conf.setProperty("jaasEntry", "tinkerpop");
+    //      //                    conf.setProperty("protocol", "GSSAPI");
+    //      conf.setProperty("hosts", "127.0.0.1");
+    //      conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0");
+    //      conf.setProperty("serializer.config",
+    //          "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] }");
+    //
+    //      //        conf.setProperty("serializer.className", "org.apache.tinkerpop.gremlin.driver.ser.GryoMessageSerializerV3d0");
+    //      //        conf.setProperty("serializer.config", "{ ioRegistries: [org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerIoRegistryV3d0, org.janusgraph.graphdb.tinkerpop.JanusGraphIoRegistry] , useMapperFromGraph: graph}");
+    //
+    //      //        conf.setProperty("connectionPool.channelizer", "org.apache.tinkerpop.gremlin.driver.Channelizer.WebSocketChannelizer");
+    //      //        conf.setProperty("connectionPool.enableSsl", false);
+    //      //        conf.setProperty("connectionPool.trustCertChainFile", "");
+    //      conf.setProperty("connectionPool.minSize", 1);
+    //      conf.setProperty("connectionPool.maxSize", 1);
+    //      conf.setProperty("connectionPool.minSimultaneousUsagePerConnection", 1);
+    //      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+    //      conf.setProperty("connectionPool.maxInProcessPerConnection", 1);
+    //      conf.setProperty("connectionPool.minInProcessPerConnection", 1);
+    //      conf.setProperty("connectionPool.maxSimultaneousUsagePerConnection", 1);
+    //      //        conf.setProperty("connectionPool.maxWaitForConnection", 200000);
+    //      conf.setProperty("connectionPool.maxContentLength", 2000000);
+    //      //        conf.setProperty("connectionPool.reconnectInterval", 2000);
+    //      //        conf.setProperty("connectionPool.resultIterationBatchSize", 200000);
+    //      //        conf.setProperty("connectionPool.keepAliveInterval", 1800000);
+    //    }
   }
 
   protected static String getAbsolutePath(final File configParent, final String file)
@@ -696,8 +699,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
     else
     {
-      Map props = new HashMap(bindings);
+      Map<String, Object> props = new HashMap<>(bindings);
+      getLogger().debug("Custer client : queryString ---> " + queryString + ", bindings ---> " + props);
       ResultSet res = client.submit(queryString, props);
+
       CompletableFuture<List<Result>> resFuture = res.all();
 
       if (resFuture.isCompletedExceptionally())
@@ -705,39 +710,27 @@ public class PontusTinkerPopClient extends AbstractProcessor
         resFuture.exceptionally((Throwable throwable) -> {
           getLogger().error(
               "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
-          //                                    session.transfer(tempFlowFile, REL_FAILURE);
-
           throw new ProcessException(throwable);
         }).join();
 
       }
+      final List<String> list = resFuture.get().stream().map(result -> result.getString()).collect(Collectors.toList());
 
-      List<Result> results = resFuture.get();
-
-      GraphSONWriter writer = GraphSONWriter.build().create();
-
-      StringBuilder strBld = new StringBuilder("[");
-      int counter = 0;
-
-      try (final ByteArrayOutputStream out = new ByteArrayOutputStream())
+      final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID()).code(ResponseStatusCode.SUCCESS)
+          .result(list).create();
+      try
       {
-        for (Result res1 : results)
-        {
-          if (counter != 0)
-          {
-            strBld.append(',');
-          }
-          writer.writeObject(out, res1.getObject());
-          final String json = out.toString();
-          strBld.append(json);
-          counter++;
 
-        }
+        final MessageTextSerializer messageTextSerializer = new GraphSONMessageSerializerV3d0();
+        String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
+        byte[] bytes = responseAsString.getBytes(UTF8.getJavaName());
+        return Unpooled.wrappedBuffer(bytes).array();
       }
-
-      strBld.append(']');
-
-      return strBld.toString().getBytes();
+      catch (Exception ex)
+      {
+        getLogger().warn(String.format("Custer client : Error during serialization for " + responseMessage), ex);
+        throw new RuntimeException(ex);
+      }
     }
 
     return new byte[0];
