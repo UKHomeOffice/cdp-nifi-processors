@@ -698,7 +698,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
     {
       Map props = new HashMap(bindings);
       ResultSet res = client.submit(queryString, props);
-//      ResultSet res = client.submit(queryString, bindings);
       CompletableFuture<List<Result>> resFuture = res.all();
 
       if (resFuture.isCompletedExceptionally())
