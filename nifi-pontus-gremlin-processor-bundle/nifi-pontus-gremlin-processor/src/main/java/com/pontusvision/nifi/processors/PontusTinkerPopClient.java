@@ -16,6 +16,7 @@ import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.components.ValidationResult;
@@ -46,10 +47,7 @@ import org.javatuples.Pair;
 
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -197,9 +195,11 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   protected void handleError(Throwable e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
+
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
     //    session.transfer(flowFile, REL_FAILURE);
 
+    closeClient("Error");
     if (flowFile != null)
     {
       flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
@@ -530,15 +530,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
         try
         {
-          URI uri = new URI(confFileURI);
-
-          cluster = Cluster.build(new File(uri)).create();
-
-          //            Cluster.open(conf);
-
-          Client unaliasedClient = cluster.connect();
-          client = unaliasedClient; //.alias(aliasStr);
-
+           createClient();
         }
         catch (URISyntaxException e)
         {
@@ -550,6 +542,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
 
   }
+
+
 
   protected void configureSerializers()
   {
@@ -616,6 +610,60 @@ public class PontusTinkerPopClient extends AbstractProcessor
       throw new RuntimeException("Serialization configuration error.");
     }
   }
+
+
+  public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
+  {
+
+    if (!useEmbeddedServer && this.cluster != null && (this.cluster.isClosed() || this.cluster.isClosing())) {
+
+
+      closeClient("Recover from failure");
+
+      createClient();
+
+    }
+  }
+
+  public void createClient() throws URISyntaxException, FileNotFoundException
+  {
+    if (!useEmbeddedServer)
+    {
+
+      URI uri = new URI(confFileURI);
+
+      cluster = Cluster.build(new File(uri)).create();
+
+      //            Cluster.open(conf);
+
+      client = cluster.connect();
+    }
+
+  }
+
+  public void closeClient(String reason){
+
+    if (!useEmbeddedServer)
+    {
+      getLogger().info("Closing remote graph client - reason: " + reason);
+      if (client != null)
+      {
+        client.close();
+      }
+      if (cluster != null)
+      {
+        cluster.close();
+      }
+    }
+  }
+
+
+
+  @OnStopped
+  public void stopped() {
+    closeClient("stopped");
+  }
+
 
   public Bindings getBindings(FlowFile flowfile)
   {
@@ -728,7 +776,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       }
       catch (Exception ex)
       {
-        getLogger().warn(String.format("Custer client : Error during serialization for " + responseMessage), ex);
+        getLogger().warn(String.format("Cluster client : Error during serialization for " + responseMessage), ex);
         throw new RuntimeException(ex);
       }
     }
@@ -751,6 +799,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
         return;
       }
 
+      checkGraphStatus();
+
       final Bindings bindings = getBindings(flowfile);
 
       Map<String, String> allAttribs = flowfile.getAttributes();
@@ -767,7 +817,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       session.transfer(localFlowFile, REL_SUCCESS);
 
-      return;
 
     }
     catch (Throwable e)
