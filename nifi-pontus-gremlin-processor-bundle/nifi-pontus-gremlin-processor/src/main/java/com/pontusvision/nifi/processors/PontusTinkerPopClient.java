@@ -840,5 +840,5 @@ public class PontusTinkerPopClient extends AbstractProcessor
     e.printStackTrace(pw);
     return sw.toString();
   }
-  
+
 }
