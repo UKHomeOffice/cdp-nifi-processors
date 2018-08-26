@@ -55,7 +55,6 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
     final RecordReaderFactory readerFactory = context.getProperty(RECORD_READER)
         .asControllerService(RecordReaderFactory.class);
 
-    final Map<String, String> attributes = new HashMap<>();
     final AtomicInteger recordCount = new AtomicInteger();
 
     final List<String> reqUUIDs = new LinkedList<>();
@@ -68,7 +67,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
 
     final FlowFile original = flowFile;
     final Map<String, String> originalAttributes = flowFile.getAttributes();
-    attributes.putAll(originalAttributes);
+    final Map<String, String> attributes = new HashMap<>(originalAttributes);
 
     try
     {
@@ -124,12 +123,11 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
           String queryString = getQueryStr(session);
 
           byte[] res = runQuery(bindings, queryString);
-          FlowFile localFlowFile = original;
+          FlowFile localFlowFile = session.create();
           localFlowFile = session.putAllAttributes(localFlowFile, attributes);
-          localFlowFile = session.create(localFlowFile);
+
           localFlowFile = session.write(localFlowFile, out2 -> out2.write(res));
 
-          session.remove(original);
 
           session.transfer(localFlowFile, REL_SUCCESS);
 
@@ -146,6 +144,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
           throw new ProcessException("Could not process incoming data", e);
         }
       });
+      session.remove(original);
 
     }
     catch (final Exception e)
