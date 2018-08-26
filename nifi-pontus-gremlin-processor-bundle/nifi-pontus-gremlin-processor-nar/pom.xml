@@ -44,7 +44,7 @@
         </dependency>
 
 
-        <dependency>
+        <!--dependency>
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-driver</artifactId>
             <version>${gremlin-version}</version>
@@ -60,7 +60,7 @@
                 </exclusion>
 
             </exclusions>
-        </dependency>
+        </dependency -->
 
         <!--<dependency>-->
         <!--<groupId>org.apache.nifi</groupId>-->
