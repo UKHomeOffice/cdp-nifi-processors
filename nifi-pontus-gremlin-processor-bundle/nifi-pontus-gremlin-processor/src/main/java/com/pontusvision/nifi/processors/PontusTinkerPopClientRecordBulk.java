@@ -126,7 +126,10 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
           byte[] res = runQuery(bindings, queryString);
           FlowFile localFlowFile = original;
           localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+          localFlowFile = session.create(localFlowFile);
           localFlowFile = session.write(localFlowFile, out2 -> out2.write(res));
+
+          session.remove(original);
 
           session.transfer(localFlowFile, REL_SUCCESS);
 

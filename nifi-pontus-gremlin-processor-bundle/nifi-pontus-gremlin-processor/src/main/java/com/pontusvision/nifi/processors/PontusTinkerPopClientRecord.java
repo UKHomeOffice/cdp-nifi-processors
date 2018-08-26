@@ -130,6 +130,7 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
             byte[] res = runQuery(bindings, queryString);
             FlowFile localFlowFile = original;
             localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+            localFlowFile = session.create(localFlowFile);
             localFlowFile = session.write(localFlowFile, out2 -> out2.write(res));
 
             session.transfer(localFlowFile, REL_SUCCESS);
@@ -149,6 +150,8 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
           throw new ProcessException("Could not process incoming data", e);
         }
       });
+
+      session.remove(original);
 
     }
     catch (final Exception e)
