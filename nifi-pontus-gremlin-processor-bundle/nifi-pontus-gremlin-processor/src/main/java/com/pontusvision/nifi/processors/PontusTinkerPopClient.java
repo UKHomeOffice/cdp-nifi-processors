@@ -410,8 +410,17 @@ public class PontusTinkerPopClient extends AbstractProcessor
               + "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" + Pattern.quote(INDEX_CONF_FILE.getName()) + ")"
               + ")");
 
+      //final Iterator<String> keysToMangle = Iterators
+          //.filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
       final Iterator<String> keysToMangle = Iterators
-          .filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
+          .filter(configuration.getKeys(), new Predicate<String>()
+              {
+                @Override public boolean apply(@Nullable String key)
+                {
+                  return ((null != key) && p.matcher((CharSequence) key).matches());
+                }
+              });
+
 
       while (keysToMangle.hasNext())
       {

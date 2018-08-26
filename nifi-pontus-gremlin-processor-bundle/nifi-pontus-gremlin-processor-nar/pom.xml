@@ -20,18 +20,18 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
-        <version>1.1</version>
+        <version>1.2</version>
     </parent>
 
     <artifactId>nifi-pontus-gremlin-processor-nar</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
     <packaging>nar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-pontus-gremlin-processor</artifactId>
-            <version>1.1</version>
+            <version>1.2</version>
         </dependency>
         <!-- NAR dependency on the API so the processor can use the service at runtime -->
 
@@ -42,33 +42,6 @@
             <type>nar</type>
 
         </dependency>
-
-
-        <!--dependency>
-            <groupId>org.apache.tinkerpop</groupId>
-            <artifactId>gremlin-driver</artifactId>
-            <version>${gremlin-version}</version>
-            <exclusions>
-                <exclusion>
-
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-lang3</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-
-            </exclusions>
-        </dependency -->
-
-        <!--<dependency>-->
-        <!--<groupId>org.apache.nifi</groupId>-->
-        <!--<artifactId>nifi-pontus-service-api-nar</artifactId>-->
-        <!--<version>1.0</version>-->
-        <!--<type>nar</type>-->
-        <!--</dependency>-->
-
 
     </dependencies>
 

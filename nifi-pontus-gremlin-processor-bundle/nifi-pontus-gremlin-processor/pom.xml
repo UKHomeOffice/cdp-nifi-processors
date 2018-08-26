@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
-        <version>1.1</version>
+        <version>1.2</version>
     </parent>
 
     <artifactId>nifi-pontus-gremlin-processor</artifactId>
@@ -42,47 +42,12 @@
         </dependency>
 
 
-        <!--
-        <dependency>
-            <groupId>org.apache.tinkerpop</groupId>
-            <artifactId>gremlin-driver</artifactId>
-            <version>${gremlin-version}</version>
-            <exclusions>
-                <exclusion>
-
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-lang3</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.tinkerpop</groupId>
-            <artifactId>gremlin-server</artifactId>
-            <version>${gremlin-version}</version>
-            <exclusions>
-                <exclusion>
-
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-lang3</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-   -->
-
-
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-pontus-service-api</artifactId>
             <version>1.0</version>
         </dependency>
+
 
 
         <dependency>
@@ -127,62 +92,6 @@
             <scope>compile</scope>
 
         </dependency>
-        <!--dependency>
-            <groupId>org.janusgraph</groupId>
-            <artifactId>janusgraph-core</artifactId>
-            <version>${janusgraph.version}</version>
-            <exclusions>
-
-                <exclusion>
-                    <groupId>commons-codec</groupId>
-                    <artifactId>commons-codec</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>commons-io</groupId>
-                    <artifactId>commons-io</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-lang3</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-classic</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.sun.jersey</groupId>
-                    <artifactId>jersey-json</artifactId>
-                </exclusion>
-
-                <exclusion>
-                    <groupId>com.sun.jersey</groupId>
-                    <artifactId>jersey-core</artifactId>
-                </exclusion>
-
-                <exclusion>
-                    <groupId>com.sun.jersey</groupId>
-                    <artifactId>jersey-server</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.janusgraph</groupId>
-
-                    <artifactId>janusgraph-cassandra</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                    <artifactId>jackson-annotations</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.javassist</groupId>
-                    <artifactId>javassist</artifactId>
-                </exclusion>
-
-            </exclusions>
-        </dependency -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
