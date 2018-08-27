@@ -72,6 +72,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
     try
     {
       final FlowFile tempFlowFile = flowFile;
+      checkGraphStatus();
 
       flowFile = session.write(flowFile, (in, out) -> {
 
