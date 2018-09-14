@@ -632,6 +632,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       cluster = Cluster.build(new File(uri)).create();
 
       client = cluster.connect();
+      client.init();
     }
 
   }
