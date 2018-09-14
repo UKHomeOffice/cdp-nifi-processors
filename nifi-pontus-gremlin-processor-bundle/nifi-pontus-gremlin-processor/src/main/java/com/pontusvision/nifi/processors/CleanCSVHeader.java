@@ -104,7 +104,8 @@ public class CleanCSVHeader   extends AbstractProcessor
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
   {
     final ComponentLog log = this.getLogger();
-    FlowFile flowfile = session.get();
+    final FlowFile flowfile = session.get();
+
 
     session.read(flowfile, new InputStreamCallback()
     {
@@ -123,8 +124,10 @@ public class CleanCSVHeader   extends AbstractProcessor
 
 
           FlowFile ffile = session.create();
+          ffile = session.putAllAttributes(ffile, flowfile.getAttributes());
 
-           session.write(ffile,new OutputStreamCallback(){
+
+          session.write(ffile,new OutputStreamCallback(){
             @Override public void process(OutputStream out) throws IOException
             {
 
@@ -152,6 +155,7 @@ public class CleanCSVHeader   extends AbstractProcessor
 
             }
           });
+
 
           session.transfer(ffile,SUCCESS);
 
