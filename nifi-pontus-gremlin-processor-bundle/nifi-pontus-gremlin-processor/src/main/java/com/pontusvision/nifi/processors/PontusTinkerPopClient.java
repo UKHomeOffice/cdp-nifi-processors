@@ -794,7 +794,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
         return;
       }
 
-      checkGraphStatus();
 
       final Bindings bindings = getBindings(flowfile);
 
@@ -805,6 +804,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
+
+      checkGraphStatus();
 
       byte[] res = runQuery(bindings, queryString);
 
