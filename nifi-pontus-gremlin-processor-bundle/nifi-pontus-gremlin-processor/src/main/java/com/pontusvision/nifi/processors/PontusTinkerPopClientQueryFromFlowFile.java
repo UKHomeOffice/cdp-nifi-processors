@@ -50,8 +50,11 @@ public class PontusTinkerPopClientQueryFromFlowFile extends PontusTinkerPopClien
   @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
     final List<PropertyDescriptor> properties = new ArrayList<>();
+
+    properties.add(PONTUS_GRAPH_EMBEDDED_SERVER);
     properties.add(TINKERPOP_CLIENT_CONF_FILE_URI);
     properties.add(TINKERPOP_QUERY_PARAM_PREFIX);
+
     return properties;
   }
 

@@ -19,7 +19,7 @@
 
     <groupId>org.apache.nifi</groupId>
     <artifactId>nifi-pontus-gremlin-processor-bundle</artifactId>
-    <version>1.2.0</version>
+    <version>1.2</version>
     <packaging>pom</packaging>
 
     <properties>
