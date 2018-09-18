@@ -19,5 +19,5 @@ cp */*/target/*office*.nar  */*/target/*gremlin*.nar */*/target/*service*.nar $O
 cd $CURDIR
 
 echo cd $OUT_DIR
-echo tar cvf - * | docker cp - d:/opt/pontus/pontus-nifi/current/lib
+echo "tar cvf - * | docker cp - d:/opt/pontus/pontus-nifi/current/lib"
 echo cd -
