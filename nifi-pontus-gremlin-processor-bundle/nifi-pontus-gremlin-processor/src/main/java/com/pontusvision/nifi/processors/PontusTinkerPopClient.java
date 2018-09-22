@@ -5,6 +5,9 @@
  */
 package com.pontusvision.nifi.processors;
 
+import com.fasterxml.uuid.EthernetAddress;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedGenerator;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -187,6 +190,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
   String aliasStr = "g1";
   Client client = null;
 
+  EthernetAddress addr = EthernetAddress.fromInterface();
+  TimeBasedGenerator uuidGen =  Generators.timeBasedGenerator(addr);
+
   Boolean useEmbeddedServer = null;
   ServerGremlinExecutor embeddedServer = null;
   Cluster cluster = null;
@@ -278,6 +284,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     else if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
     {
       confFileURI = newValue;
+      cluster = null;
 
     }
     else if (descriptor.equals(TINKERPOP_QUERY_STR))
@@ -508,14 +515,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
         }
       }
     }
-    if (client != null)
-    {
-      client.close();
-    }
-    if (cluster != null)
-    {
-      cluster.close();
-    }
+
 
     if (!useEmbeddedServer)
     {
@@ -622,16 +622,30 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  public void createClient() throws URISyntaxException, FileNotFoundException
+  public synchronized void createClient() throws URISyntaxException, FileNotFoundException
   {
     if (!useEmbeddedServer)
     {
 
-      URI uri = new URI(confFileURI);
 
-      cluster = Cluster.build(new File(uri)).create();
+
+      if (client != null)
+      {
+        client.close();
+      }
+      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
+      {
+        //        cluster.close();
+
+        URI uri = new URI(confFileURI);
+
+        cluster = Cluster.build(new File(uri)).create();
+      }
 
       client = cluster.connect();
+      client.init();
+
+
     }
 
   }
@@ -698,7 +712,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       final CompletableFuture<Object> evalFuture = gremlinExecutor
           .eval(queryString, null, bindings, FunctionUtils.wrapFunction(o -> {
-            final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID())
+            final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
                 .code(ResponseStatusCode.SUCCESS).result(IteratorUtils.asList(o)).create();
 
             try
@@ -761,7 +775,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
         final List<String> list = resFuture.get(timeoutInSecs, TimeUnit.SECONDS).stream()
             .map(result -> result.getString()).collect(Collectors.toList());
 
-        final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID())
+        final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
             .code(ResponseStatusCode.SUCCESS).result(list).create();
 
         String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
