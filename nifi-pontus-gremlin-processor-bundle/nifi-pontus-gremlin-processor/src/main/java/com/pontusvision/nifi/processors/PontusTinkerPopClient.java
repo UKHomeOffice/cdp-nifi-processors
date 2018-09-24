@@ -631,7 +631,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (client != null)
       {
-        client.close();
+        client.closeAsync();
       }
       if (cluster == null || (cluster != null && (cluster.isClosed() )) )
       {
@@ -803,7 +803,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       final FlowFile flowfile = session.get();
       if (flowfile == null)
       {
-        log.error("Got a NULL flow file");
+//        log.error("Got a NULL flow file");
         return;
       }
 
