@@ -195,7 +195,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   Boolean useEmbeddedServer = null;
   ServerGremlinExecutor embeddedServer = null;
-  Cluster cluster = null;
+
+  ClusterClientService clusterClientService;
+//  Cluster cluster = null;
   Set<Relationship> relationships = new HashSet<>();
 
   Settings settings;
@@ -284,7 +286,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     else if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
     {
       confFileURI = newValue;
-      cluster = null;
+//      cluster = null;
 
     }
     else if (descriptor.equals(TINKERPOP_QUERY_STR))
@@ -607,7 +609,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
   {
 
-    if (!useEmbeddedServer && this.cluster != null && (this.cluster.isClosed() || this.cluster.isClosing()))
+    if (!useEmbeddedServer && this.clusterClientService != null && (this.clusterClientService.getCluster() != null && this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing()))
     {
 
       closeClient("Recover from failure");
@@ -628,22 +630,30 @@ public class PontusTinkerPopClient extends AbstractProcessor
     {
 
 
-
-      if (client != null)
+      if (clusterClientService == null)
       {
-        client.closeAsync();
-      }
-      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
-      {
-        //        cluster.close();
-
-        URI uri = new URI(confFileURI);
-
-        cluster = Cluster.build(new File(uri)).create();
+        clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
       }
 
-      client = cluster.connect();
-      client.init();
+      client = clusterClientService.getClient();
+
+//
+//
+//      if (client != null)
+//      {
+//        client.closeAsync();
+//      }
+//      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
+//      {
+//        //        cluster.close();
+//
+//        URI uri = new URI(confFileURI);
+//
+//        cluster = Cluster.build(new File(uri)).create();
+//      }
+//
+//      client = cluster.connect();
+//      client.init();
 
 
     }
@@ -656,14 +666,18 @@ public class PontusTinkerPopClient extends AbstractProcessor
     if (!useEmbeddedServer)
     {
       getLogger().info("Closing remote graph client - reason: " + reason);
-      if (client != null)
-      {
-        client.close();
+
+
+      if (this.clusterClientService != null){
+        this.clusterClientService.close(reason);
       }
-      if (cluster != null)
-      {
-        cluster.close();
-      }
+
+//      if (cluster != null)
+//      {
+//        cluster.close();
+//      }
+
+
     }
   }
 
