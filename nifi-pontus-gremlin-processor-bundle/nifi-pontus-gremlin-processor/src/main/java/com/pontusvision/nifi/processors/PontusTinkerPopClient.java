@@ -306,7 +306,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       timeoutInSecs = Integer.parseInt(newValue);
     }
 
-    createClient(confFileURI,useEmbeddedServer);
+//    createClient(confFileURI,useEmbeddedServer);
 
 
   }
@@ -609,7 +609,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
   public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
   {
 
-    if (!useEmbeddedServer && this.clusterClientService != null && (this.clusterClientService.getCluster() != null && this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing()))
+    if (!useEmbeddedServer &&
+        this.clusterClientService != null &&
+        (this.clusterClientService.getCluster() != null &&
+        (this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing())))
     {
 
       closeClient("Recover from failure");
