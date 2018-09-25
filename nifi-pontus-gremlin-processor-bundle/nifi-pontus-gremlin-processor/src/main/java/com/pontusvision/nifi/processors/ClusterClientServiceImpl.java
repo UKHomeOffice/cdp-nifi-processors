@@ -37,8 +37,6 @@ class ClusterClientServiceImpl implements ClusterClientService
       this.executeQuery = new ExecuteQuery();
 
       cluster = Cluster.build(new File(new URI(clientYaml))).create();
-      client = cluster.connect();
-      client.init();
 
     }
     catch (Exception e)
@@ -72,6 +70,9 @@ class ClusterClientServiceImpl implements ClusterClientService
 
   @Override public Client getClient()
   {
+    this.client = this.cluster.connect();
+    this.client.init();
+
     return this.client;
   }
 
