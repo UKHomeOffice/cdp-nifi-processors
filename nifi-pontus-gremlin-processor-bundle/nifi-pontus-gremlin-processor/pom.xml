@@ -24,6 +24,7 @@
     </parent>
 
     <artifactId>nifi-pontus-gremlin-processor</artifactId>
+    <version>1.2</version>
     <packaging>jar</packaging>
 
     <dependencies>
