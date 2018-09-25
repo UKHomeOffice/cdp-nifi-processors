@@ -306,7 +306,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       timeoutInSecs = Integer.parseInt(newValue);
     }
 
-//    createClient(confFileURI,useEmbeddedServer);
+    createClient(confFileURI,useEmbeddedServer);
 
 
   }
