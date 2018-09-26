@@ -19,6 +19,8 @@ import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 
 import javax.script.Bindings;
+import java.io.FileNotFoundException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -103,12 +105,12 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
   }
 
   @Override
-  public byte[] runQuery(Bindings bindings, String queryString)
+  public byte[] runQuery(Bindings bindings, String queryString) throws FileNotFoundException, URISyntaxException
   {
 
     Map<String, Object> props = new HashMap<>(bindings);
 
-    ResultSet res = service.getService().client.submit(queryString, props);
+    ResultSet res = service.getService().getClient().submit(queryString, props);
 
     return getBytesFromResultSet(res);
 

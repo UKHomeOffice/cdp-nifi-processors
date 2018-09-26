@@ -49,6 +49,6 @@ import java.util.List;
   @OnEnabled  void onEnabled(final ConfigurationContext context) throws InitializationException;
   @OnDisabled void shutdown();
 
-  ClusterClientServiceImpl getService();
+  ClusterClientService getService();
 
 }

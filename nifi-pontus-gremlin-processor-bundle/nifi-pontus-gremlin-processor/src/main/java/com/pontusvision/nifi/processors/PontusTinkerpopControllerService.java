@@ -83,7 +83,7 @@ import java.util.List;
 
   }
 
-  @Override public ClusterClientServiceImpl getService()
+  @Override public ClusterClientService getService()
   {
     return clusterClientService;
   }
