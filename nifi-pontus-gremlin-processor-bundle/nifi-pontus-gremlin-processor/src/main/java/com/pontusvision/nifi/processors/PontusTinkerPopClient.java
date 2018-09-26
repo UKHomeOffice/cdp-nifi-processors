@@ -31,7 +31,10 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.StringUtils;
-import org.apache.tinkerpop.gremlin.driver.*;
+import org.apache.tinkerpop.gremlin.driver.Client;
+import org.apache.tinkerpop.gremlin.driver.MessageSerializer;
+import org.apache.tinkerpop.gremlin.driver.Result;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseMessage;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseStatusCode;
 import org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0;
@@ -191,13 +194,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
   Client client = null;
 
   EthernetAddress addr = EthernetAddress.fromInterface();
-  TimeBasedGenerator uuidGen =  Generators.timeBasedGenerator(addr);
+  TimeBasedGenerator uuidGen = Generators.timeBasedGenerator(addr);
 
   Boolean useEmbeddedServer = null;
   ServerGremlinExecutor embeddedServer = null;
 
-  ClusterClientService clusterClientService;
-//  Cluster cluster = null;
+  static ClusterClientService clusterClientService;
+  //  Cluster cluster = null;
   Set<Relationship> relationships = new HashSet<>();
 
   Settings settings;
@@ -238,14 +241,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
       {
         if (cause.getCause() instanceof TimeoutException)
         {
-          createClient(confFileURI,useEmbeddedServer);
+          createClient(confFileURI, useEmbeddedServer);
         }
         else if (cause.getCause() instanceof RuntimeException)
         {
           cause = cause.getCause();
           if (cause.getCause() instanceof TimeoutException)
           {
-            createClient(confFileURI,useEmbeddedServer);
+            createClient(confFileURI, useEmbeddedServer);
           }
 
         }
@@ -263,7 +266,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
   {
     return relationships;
   }
-
 
   @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
@@ -286,7 +288,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     else if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
     {
       confFileURI = newValue;
-//      cluster = null;
+      //      cluster = null;
 
     }
     else if (descriptor.equals(TINKERPOP_QUERY_STR))
@@ -306,8 +308,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       timeoutInSecs = Integer.parseInt(newValue);
     }
 
-    createClient(confFileURI,useEmbeddedServer);
-
+    createClient(confFileURI, useEmbeddedServer);
 
   }
 
@@ -518,7 +519,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
       }
     }
 
-
     if (!useEmbeddedServer)
     {
 
@@ -536,9 +536,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
       }
     }
   }
-
-
-
 
   protected void configureSerializers()
   {
@@ -609,10 +606,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
   public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
   {
 
-    if (!useEmbeddedServer &&
-        this.clusterClientService != null &&
-        (this.clusterClientService.getCluster() != null &&
-        (this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing())))
+    if (!useEmbeddedServer && this.clusterClientService != null && (this.clusterClientService.getCluster() != null && (
+        this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing())))
     {
 
       closeClient("Recover from failure");
@@ -632,32 +627,33 @@ public class PontusTinkerPopClient extends AbstractProcessor
     if (!useEmbeddedServer)
     {
 
-
       if (clusterClientService == null)
       {
         clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
       }
 
-      client = clusterClientService.getClient();
+      if (client == null || (client != null && client.isClosing()))
+      {
+        client = clusterClientService.getClient();
+      }
 
-//
-//
-//      if (client != null)
-//      {
-//        client.closeAsync();
-//      }
-//      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
-//      {
-//        //        cluster.close();
-//
-//        URI uri = new URI(confFileURI);
-//
-//        cluster = Cluster.build(new File(uri)).create();
-//      }
-//
-//      client = cluster.connect();
-//      client.init();
-
+      //
+      //
+      //      if (client != null)
+      //      {
+      //        client.closeAsync();
+      //      }
+      //      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
+      //      {
+      //        //        cluster.close();
+      //
+      //        URI uri = new URI(confFileURI);
+      //
+      //        cluster = Cluster.build(new File(uri)).create();
+      //      }
+      //
+      //      client = cluster.connect();
+      //      client.init();
 
     }
 
@@ -670,16 +666,15 @@ public class PontusTinkerPopClient extends AbstractProcessor
     {
       getLogger().info("Closing remote graph client - reason: " + reason);
 
-
-      if (this.clusterClientService != null){
+      if (this.clusterClientService != null)
+      {
         this.clusterClientService.close(reason);
       }
 
-//      if (cluster != null)
-//      {
-//        cluster.close();
-//      }
-
+      //      if (cluster != null)
+      //      {
+      //        cluster.close();
+      //      }
 
     }
   }
@@ -820,7 +815,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       final FlowFile flowfile = session.get();
       if (flowfile == null)
       {
-//        log.error("Got a NULL flow file");
+        //        log.error("Got a NULL flow file");
         return;
       }
 
