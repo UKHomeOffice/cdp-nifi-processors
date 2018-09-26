@@ -46,7 +46,9 @@ import java.util.List;
    * @param context the configuration context
    * @throws InitializationException if unable to create a database connection
    */
-  @OnEnabled public void onEnabled(final ConfigurationContext context) throws InitializationException;
-  @OnDisabled public void shutdown();
+  @OnEnabled  void onEnabled(final ConfigurationContext context) throws InitializationException;
+  @OnDisabled void shutdown();
+
+  ClusterClientServiceImpl getService();
 
 }

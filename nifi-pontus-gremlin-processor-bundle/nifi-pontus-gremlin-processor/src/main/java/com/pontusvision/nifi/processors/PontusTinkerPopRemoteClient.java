@@ -57,7 +57,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       .identifiesControllerService(PontusTinkerpopControllerServiceInterface.class).build();
 
 
-  PontusTinkerpopControllerService service = null;
+  PontusTinkerpopControllerServiceInterface service = null;
   public PontusTinkerPopRemoteClient()
   {
     relationships.add(REL_FAILURE);
@@ -108,7 +108,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
     Map<String, Object> props = new HashMap<>(bindings);
 
-    ResultSet res = service.clusterClientService.client.submit(queryString, props);
+    ResultSet res = service.getService().client.submit(queryString, props);
 
     return getBytesFromResultSet(res);
 
@@ -133,7 +133,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
 
       if (service == null){
-        service = (PontusTinkerpopControllerService) context.getProperty(TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR).asControllerService(PontusTinkerpopControllerServiceInterface.class);
+        service = context.getProperty(TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR).asControllerService(PontusTinkerpopControllerServiceInterface.class);
       }
 
 

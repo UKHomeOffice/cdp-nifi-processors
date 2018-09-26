@@ -83,4 +83,9 @@ import java.util.List;
 
   }
 
+  @Override public ClusterClientServiceImpl getService()
+  {
+    return clusterClientService;
+  }
+
 }
