@@ -24,8 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
-
 /**
  * @author Leo Martins
  */
@@ -162,6 +160,52 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       log.error("Failed to run query against Tinkerpop; error: {}", e);
     }
 
+  }
+  protected void handleError(Throwable e, FlowFile flowFile, ProcessSession session, ProcessContext context)
+  {
+
+    getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
+    //    session.transfer(flowFile, REL_FAILURE);
+
+//    closeClient("Error");
+    if (flowFile != null)
+    {
+      flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
+      flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
+      session.transfer(flowFile, REL_FAILURE);
+    }
+    else
+    {
+      FlowFile ff = session.create();
+      ff = session.putAttribute(ff, "PontusTinkerPopClient.error", e.getMessage());
+      ff = session.putAttribute(ff, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
+      session.transfer(ff, REL_FAILURE);
+    }
+//    Throwable cause = e.getCause();
+//    if (cause instanceof RuntimeException)
+//    {
+//      try
+//      {
+//        if (cause.getCause() instanceof TimeoutException)
+//        {
+//          createClient(confFileURI, useEmbeddedServer);
+//        }
+//        else if (cause.getCause() instanceof RuntimeException)
+//        {
+//          cause = cause.getCause();
+//          if (cause.getCause() instanceof TimeoutException)
+//          {
+//            createClient(confFileURI, useEmbeddedServer);
+//          }
+//
+//        }
+//      }
+//      catch (Throwable t)
+//      {
+//        getLogger().error("Failed to reconnect {}", new Object[] { t });
+//
+//      }
+//    }
   }
 
 }
