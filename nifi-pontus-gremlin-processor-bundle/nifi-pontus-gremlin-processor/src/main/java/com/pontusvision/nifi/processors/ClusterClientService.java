@@ -5,14 +5,10 @@ import org.apache.tinkerpop.gremlin.driver.Cluster;
 
 import java.io.FileNotFoundException;
 import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
 
 public interface ClusterClientService {
 
   boolean isClosed();
-
-  Map<String, String> getVids(List guidS, String binding, String gremlinQuery);
 
   Cluster getCluster ();
 

@@ -3,44 +3,28 @@ package com.pontusvision.nifi.processors;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
-import org.apache.tinkerpop.gremlin.driver.Result;
-import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 class ClusterClientServiceImpl implements ClusterClientService
 {
 
-  public static final String SEPARATOR = "=";
-  public static final String GUIDS = "guids";
-
   private static final Logger logger = LoggerFactory.getLogger(ClusterClientServiceImpl.class);
-  private Cluster cluster;
-  private Client client;
-  private int clientTimeoutInSeconds;
-  private ExecuteQuery executeQuery;
+  public Cluster cluster;
+  public  Client client;
 
   private String clientYaml;
 
-  public ClusterClientServiceImpl(String clientYaml, int clientTimeoutInSeconds)
+  public ClusterClientServiceImpl(String clientYaml)
   {
     try
     {
       this.clientYaml = clientYaml;
-      this.clientTimeoutInSeconds = clientTimeoutInSeconds;
-      this.executeQuery = new ExecuteQuery();
 
-      cluster = Cluster.build(new File(new URI(clientYaml))).create();
-      cluster.init();
+      createClient();
 
     }
     catch (Exception e)
@@ -54,16 +38,6 @@ class ClusterClientServiceImpl implements ClusterClientService
     return this.cluster.isClosed() || this.cluster.isClosing();
   }
 
-  @Override public Map<String, String> getVids(List guidS, String binding, String gremlinQuery)
-  {
-    Map<String, Object> bindings = new HashMap<>();
-    bindings.put(GUIDS, guidS);
-    bindings.put(binding, guidS);
-
-    Map<String, String> result = executeQuery.invoke(client, gremlinQuery, bindings, clientTimeoutInSeconds);
-    return result;
-
-  }
 
   @Override public Cluster getCluster()
   {
@@ -123,47 +97,16 @@ class ClusterClientServiceImpl implements ClusterClientService
     if (this.client != null)
     {
       client.closeAsync();
-      logger.info("IDLookup :[ClusterClientServiceImpl]: Cluster client is closed. [event=" + event + "]");
+      logger.info("PontusTinkerpop :[ClusterClientServiceImpl]: Cluster client is closed. [event=" + event + "]");
       client = null;
     }
     if (this.cluster != null)
     {
       cluster.closeAsync();
-      logger.info("IDLookup :[ClusterClientServiceImpl]: and Cluster is closed as well.");
+      logger.info("PontusTinkerpop :[ClusterClientServiceImpl]: and Cluster is closed as well.");
       cluster = null;
     }
   }
 
-  private static class ExecuteQuery
-  {
 
-    public static Map<String, String> invoke(Client client, final String gremlinQuery,
-                                             final Map<String, Object> bindings, int clientTimeoutInSeconds)
-    {
-      Map<String, String> map = new HashMap<>();
-      ResultSet results = client.submit(gremlinQuery, bindings);
-      CompletableFuture<List<Result>> completableFuture = results.all();
-
-      if (completableFuture.isCompletedExceptionally())
-      {
-        completableFuture.exceptionally((Throwable throwable) -> {
-          handleUnknownException(throwable);
-          return null;
-        });
-      }
-      else
-      {
-        try
-        {
-          map.putAll(completableFuture.get(clientTimeoutInSeconds, TimeUnit.SECONDS).stream().map(Result::getString)
-              .map(p -> p.split(SEPARATOR)).collect(Collectors.toMap((a) -> a[0], (a) -> a[1])));
-        }
-        catch (Throwable throwable)
-        {
-          handleUnknownException(throwable);
-        }
-      }
-      return map;
-    }
-  }
 }

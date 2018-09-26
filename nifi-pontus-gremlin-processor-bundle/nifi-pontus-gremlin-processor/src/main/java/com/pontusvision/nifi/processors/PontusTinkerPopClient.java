@@ -647,7 +647,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (clusterClientService == null)
       {
-        clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
+        clusterClientService = new ClusterClientServiceImpl(confFileURI);
       }
 
       if (client == null || (client != null && client.isClosing()))
@@ -657,7 +657,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (client == null)
       {
-        clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
+        clusterClientService = new ClusterClientServiceImpl(confFileURI);
         client = clusterClientService.createClient();
 
       }
@@ -732,6 +732,42 @@ public class PontusTinkerPopClient extends AbstractProcessor
     return queryStr;
   }
 
+  public byte[] getBytesFromResultSet (ResultSet res)
+  {
+
+    CompletableFuture<List<Result>> resFuture = res.all();
+
+    if (resFuture.isCompletedExceptionally())
+    {
+      resFuture.exceptionally((Throwable throwable) -> {
+        getLogger().error(
+            "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
+        throw new ProcessException(throwable);
+      }).join();
+
+    }
+
+    try
+    {
+      final List<String> list = resFuture.get(timeoutInSecs, TimeUnit.SECONDS).stream()
+          .map(result -> result.getString()).collect(Collectors.toList());
+
+      final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
+          .code(ResponseStatusCode.SUCCESS).result(list).create();
+
+      String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
+      byte[] bytes = responseAsString.getBytes(UTF8.getJavaName());
+      return Unpooled.wrappedBuffer(bytes).array();
+    }
+    catch (Exception ex)
+    {
+      getLogger().warn(String.format("Error: " + ex));
+      throw new ProcessException(ex);
+    }
+
+
+
+  }
   public byte[] runQuery(Bindings bindings, String queryString)
       throws ExecutionException, InterruptedException, IOException, URISyntaxException
   {
@@ -795,35 +831,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       //      getLogger().debug("Custer client : queryString ---> " + queryString + ", bindings ---> " + props);
       ResultSet res = client.submit(queryString, props);
 
-      CompletableFuture<List<Result>> resFuture = res.all();
-
-      if (resFuture.isCompletedExceptionally())
-      {
-        resFuture.exceptionally((Throwable throwable) -> {
-          getLogger().error(
-              "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
-          throw new ProcessException(throwable);
-        }).join();
-
-      }
-
-      try
-      {
-        final List<String> list = resFuture.get(timeoutInSecs, TimeUnit.SECONDS).stream()
-            .map(result -> result.getString()).collect(Collectors.toList());
-
-        final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
-            .code(ResponseStatusCode.SUCCESS).result(list).create();
-
-        String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
-        byte[] bytes = responseAsString.getBytes(UTF8.getJavaName());
-        return Unpooled.wrappedBuffer(bytes).array();
-      }
-      catch (Exception ex)
-      {
-        getLogger().warn(String.format("Error: " + ex));
-        throw new ProcessException(ex);
-      }
+      return getBytesFromResultSet(res);
     }
 
     return new byte[0];
@@ -871,7 +879,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  private String getStackTrace(Throwable e)
+  protected String getStackTrace(Throwable e)
   {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
