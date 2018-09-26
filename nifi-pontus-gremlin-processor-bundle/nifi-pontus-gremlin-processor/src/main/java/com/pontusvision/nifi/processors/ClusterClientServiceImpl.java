@@ -63,7 +63,14 @@ class ClusterClientServiceImpl implements ClusterClientService
       }
       this.client = this.cluster.connect();
       this.client.init();
-      this.client.submit("1+1").all().get().get(0).toString();
+
+      StringBuilder sb =  new StringBuilder("PontusTinkerpop :[ClusterClientServiceImpl; sending warm-up calls:");
+      for (int i = 0; i < 20; i ++)
+      {
+        sb.append("\n").append (this.client.submit("1+1").all().get().get(0).toString());
+      }
+      logger.info(sb.toString());
+
 
     }
     catch (Exception e)
