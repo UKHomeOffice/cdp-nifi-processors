@@ -21,66 +21,32 @@ import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnDisabled;
 import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
+import org.apache.nifi.controller.ControllerService;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Tags({ "Pontus", "Tinkerpop", "Service", "GraphDB",
-    "Janusgraph" }) @CapabilityDescription("Tinkerpop Service.") public class PontusTinkerpopControllerService
-    extends AbstractControllerService implements PontusTinkerpopControllerServiceInterface
+    "Janusgraph" }) @CapabilityDescription("Tinkerpop Service.") public interface PontusTinkerpopControllerServiceInterface
+    extends ControllerService
 {
 
   final static PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
       .name("Tinkerpop Client configuration URI").description(
           "Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).")
-      .required(false).addValidator(StandardValidators.URI_VALIDATOR).build();
+      .required(false).addValidator(StandardValidators.URI_VALIDATOR)
+      .build();
 
-  private static final List<PropertyDescriptor> properties;
 
-  static
-  {
-    final List<PropertyDescriptor> props = new ArrayList<>();
-    props.add(TINKERPOP_CLIENT_CONF_FILE_URI);
-    properties = Collections.unmodifiableList(props);
-  }
-
-  public ClusterClientServiceImpl clusterClientService;
-
-  public String uriStr = null;
-
-  @Override public List<PropertyDescriptor> getSupportedPropertyDescriptors()
-  {
-    return properties;
-  }
+  List<PropertyDescriptor> getSupportedPropertyDescriptors();
 
   /**
    * @param context the configuration context
    * @throws InitializationException if unable to create a database connection
    */
-  @OnEnabled public void onEnabled(final ConfigurationContext context) throws InitializationException
-  {
-    uriStr = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI).getValue();
-
-    try
-    {
-      clusterClientService = new ClusterClientServiceImpl(uriStr);
-    }
-    catch (Throwable t)
-    {
-      throw new InitializationException(t);
-    }
-
-  }
-
-  @OnDisabled public void shutdown()
-  {
-    clusterClientService.close("shutdown PontusTinkerpopControllerService");
-
-  }
+  @OnEnabled public void onEnabled(final ConfigurationContext context) throws InitializationException;
+  @OnDisabled public void shutdown();
 
 }

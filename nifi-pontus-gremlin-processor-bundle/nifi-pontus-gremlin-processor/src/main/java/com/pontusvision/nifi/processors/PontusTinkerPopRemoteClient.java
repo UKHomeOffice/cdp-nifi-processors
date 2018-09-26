@@ -56,7 +56,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       .name(TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR)
       .description("Specifies the controller service to connect to a remote tinkerpop service.").required(false)
       .addValidator(StandardValidators.URI_VALIDATOR)
-      .identifiesControllerService(PontusTinkerpopControllerService.class).build();
+      .identifiesControllerService(PontusTinkerpopControllerServiceInterface.class).build();
 
 
   PontusTinkerpopControllerService service = null;
@@ -135,8 +135,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
 
       if (service == null){
-        service = context.getProperty(TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR).asControllerService(PontusTinkerpopControllerService.class);
-
+        service = (PontusTinkerpopControllerService) context.getProperty(TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR).asControllerService(PontusTinkerpopControllerServiceInterface.class);
       }
 
 
