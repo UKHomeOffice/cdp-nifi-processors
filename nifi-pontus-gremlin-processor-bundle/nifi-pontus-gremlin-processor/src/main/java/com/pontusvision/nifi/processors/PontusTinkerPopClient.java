@@ -57,7 +57,6 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -746,10 +745,9 @@ public class PontusTinkerPopClient extends AbstractProcessor
       }).join();
 
     }
-
     try
     {
-      final List<String> list = resFuture.get(timeoutInSecs, TimeUnit.SECONDS).stream()
+      final List<String> list = resFuture.get().stream()
           .map(result -> result.getString()).collect(Collectors.toList());
 
       final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
