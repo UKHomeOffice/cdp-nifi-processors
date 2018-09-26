@@ -125,7 +125,7 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
 
             String queryString = getQueryStr(session);
 
-            runQuery(bindings,queryString);
+//            runQuery(bindings,queryString);
             recordCount.incrementAndGet();
             byte[] res = runQuery(bindings, queryString);
             FlowFile localFlowFile = original;
