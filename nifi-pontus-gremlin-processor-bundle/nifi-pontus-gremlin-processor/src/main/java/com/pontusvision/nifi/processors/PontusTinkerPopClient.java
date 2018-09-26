@@ -31,10 +31,7 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.util.StringUtils;
-import org.apache.tinkerpop.gremlin.driver.Client;
-import org.apache.tinkerpop.gremlin.driver.MessageSerializer;
-import org.apache.tinkerpop.gremlin.driver.Result;
-import org.apache.tinkerpop.gremlin.driver.ResultSet;
+import org.apache.tinkerpop.gremlin.driver.*;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseMessage;
 import org.apache.tinkerpop.gremlin.driver.message.ResponseStatusCode;
 import org.apache.tinkerpop.gremlin.driver.ser.GraphSONMessageSerializerV3d0;
@@ -606,18 +603,39 @@ public class PontusTinkerPopClient extends AbstractProcessor
   public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
   {
 
-    if (!useEmbeddedServer && this.clusterClientService != null && (this.clusterClientService.getCluster() != null && (
-        this.clusterClientService.getCluster().isClosed() || this.clusterClientService.getCluster().isClosing())))
+    if (!useEmbeddedServer)
     {
+      if (this.clusterClientService == null)
+      {
+        createClient();
+      }
+      if (this.client == null)
+      {
+        createClient();
+      }
 
-      closeClient("Recover from failure");
+      Cluster localCluster = (this.clusterClientService.getCluster());
+      if (localCluster == null)
+      {
+        closeClient("Recover from failure");
 
-      createClient();
+        createClient();
+      }
+      Client localClient = this.clusterClientService.getClient();
+      if (localClient == null)
+      {
+        closeClient("Recover from failure");
+        createClient();
+      }
 
-    }
-    else if (!useEmbeddedServer && this.client == null)
-    {
-      createClient();
+      if (this.client.isClosing())
+      {
+        closeClient("Recover from failure");
+        createClient();
+      }
+
+
+
     }
 
   }
@@ -635,6 +653,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
       if (client == null || (client != null && client.isClosing()))
       {
         client = clusterClientService.getClient();
+      }
+
+      if (client == null)
+      {
+        clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
+        client = clusterClientService.getClient();
+
       }
 
       //

@@ -3,6 +3,8 @@ package com.pontusvision.nifi.processors;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 
+import java.io.FileNotFoundException;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +16,7 @@ public interface ClusterClientService {
 
   Cluster getCluster ();
 
-  Client getClient ();
+  Client getClient () throws URISyntaxException, FileNotFoundException;
 
   void close(String event);
 }

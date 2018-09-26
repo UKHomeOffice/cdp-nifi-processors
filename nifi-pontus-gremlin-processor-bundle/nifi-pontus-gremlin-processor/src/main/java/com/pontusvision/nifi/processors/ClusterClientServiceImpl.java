@@ -29,14 +29,18 @@ class ClusterClientServiceImpl implements ClusterClientService
   private int clientTimeoutInSeconds;
   private ExecuteQuery executeQuery;
 
+  private String clientYaml;
+
   public ClusterClientServiceImpl(String clientYaml, int clientTimeoutInSeconds)
   {
     try
     {
+      this.clientYaml = clientYaml;
       this.clientTimeoutInSeconds = clientTimeoutInSeconds;
       this.executeQuery = new ExecuteQuery();
 
       cluster = Cluster.build(new File(new URI(clientYaml))).create();
+      cluster.init();
 
     }
     catch (Exception e)
@@ -52,13 +56,11 @@ class ClusterClientServiceImpl implements ClusterClientService
 
   @Override public Map<String, String> getVids(List guidS, String binding, String gremlinQuery)
   {
-
-    Map<String, Object> bindings = new HashMap();
+    Map<String, Object> bindings = new HashMap<>();
     bindings.put(GUIDS, guidS);
     bindings.put(binding, guidS);
 
     Map<String, String> result = executeQuery.invoke(client, gremlinQuery, bindings, clientTimeoutInSeconds);
-
     return result;
 
   }
@@ -70,28 +72,39 @@ class ClusterClientServiceImpl implements ClusterClientService
 
   @Override public Client getClient()
   {
-    this.client = this.cluster.connect();
-    this.client.init();
+    try
+    {
+      if (this.cluster == null)
+      {
+
+        cluster = Cluster.build(new File(new URI(clientYaml))).create();
+        cluster.init();
+
+      }
+      this.client = this.cluster.connect();
+      this.client.init();
+
+    }
+    catch (Exception e)
+    {
+      handleUnknownException(e);
+    }
 
     return this.client;
+
   }
 
   private static void handleUnknownException(Throwable throwable)
   {
-    try
+
+    if (throwable != null)
     {
-      if (throwable != null)
+      if (!isResponseException(ExceptionUtils.getRootCause(throwable)))
       {
-        if (!isResponseException(ExceptionUtils.getRootCause(throwable)))
-        {
-          new RuntimeException("IDLookup :[ClusterClientServiceImpl]:  VID Lookup failed. ", throwable);
-        }
+        throw new RuntimeException("ClusterClientServiceImpl]:  connection failed ", throwable);
       }
     }
-    catch (Throwable t)
-    {
-      logger.warn("Error handleUnknownException : " + t.getMessage());
-    }
+
   }
 
   private static boolean isResponseException(Throwable inner)
