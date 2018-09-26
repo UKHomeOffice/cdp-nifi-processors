@@ -63,6 +63,7 @@ class ClusterClientServiceImpl implements ClusterClientService
       }
       this.client = this.cluster.connect();
       this.client.init();
+      this.client.submit("1+1").all().get().get(0).toString();
 
     }
     catch (Exception e)

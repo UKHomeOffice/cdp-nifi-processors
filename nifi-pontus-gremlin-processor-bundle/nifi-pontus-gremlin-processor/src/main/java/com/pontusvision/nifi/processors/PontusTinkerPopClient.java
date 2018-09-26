@@ -599,7 +599,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
   }
 
-  public void checkGraphStatus() throws FileNotFoundException, URISyntaxException
+  public void checkGraphStatus()
+      throws FileNotFoundException, URISyntaxException, ExecutionException, InterruptedException
   {
 
     if (!useEmbeddedServer)
@@ -639,7 +640,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  public synchronized void createClient() throws URISyntaxException, FileNotFoundException
+  public synchronized void createClient()
+      throws URISyntaxException, FileNotFoundException, ExecutionException, InterruptedException
   {
     if (!useEmbeddedServer)
     {
@@ -658,6 +660,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       {
         clusterClientService = new ClusterClientServiceImpl(confFileURI);
         client = clusterClientService.createClient();
+
 
       }
 
