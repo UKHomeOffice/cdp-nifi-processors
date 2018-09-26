@@ -652,13 +652,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       if (client == null || (client != null && client.isClosing()))
       {
-        client = clusterClientService.getClient();
+        client = clusterClientService.createClient();
       }
 
       if (client == null)
       {
         clusterClientService = new ClusterClientServiceImpl(confFileURI, timeoutInSecs);
-        client = clusterClientService.getClient();
+        client = clusterClientService.createClient();
 
       }
 

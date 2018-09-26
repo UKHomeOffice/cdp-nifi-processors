@@ -72,6 +72,12 @@ class ClusterClientServiceImpl implements ClusterClientService
 
   @Override public Client getClient()
   {
+
+    return this.client;
+
+  }
+  @Override public Client createClient()
+  {
     try
     {
       if (this.cluster == null)

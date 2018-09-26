@@ -18,5 +18,7 @@ public interface ClusterClientService {
 
   Client getClient () throws URISyntaxException, FileNotFoundException;
 
+  Client createClient();
+
   void close(String event);
 }
