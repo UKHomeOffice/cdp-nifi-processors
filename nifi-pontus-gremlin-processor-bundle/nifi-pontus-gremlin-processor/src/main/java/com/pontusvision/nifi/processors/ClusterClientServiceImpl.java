@@ -3,6 +3,7 @@ package com.pontusvision.nifi.processors;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.ResultSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,10 +66,23 @@ class ClusterClientServiceImpl implements ClusterClientService
       this.client.init();
 
       StringBuilder sb =  new StringBuilder("PontusTinkerpop :[ClusterClientServiceImpl; sending warm-up calls:");
+
+      ResultSet [] results = new ResultSet[20];
       for (int i = 0; i < 20; i ++)
       {
-        sb.append("\n").append (this.client.submit("1+1").all().get().get(0).toString());
+        results [i] = this.client.submit("1+1");
+
       }
+
+      for (int i = 0; i < 20; i ++)
+      {
+        sb.append("\n").append (results [i].all().get().get(0).toString());
+
+      }
+
+
+
+
       logger.info(sb.toString());
 
 
