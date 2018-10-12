@@ -65,35 +65,57 @@ public class LeakyBucketThrottle extends AbstractProcessor
       initialCount = Long.parseLong(newValue);
     }
 
+
+
   }
 
-  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
-  {
-    final FlowFile flowfile = session.get();
-
-
-    if (flowfile == null){
-      return;
-    }
+  FlowFileFilter filter = flowfile -> {
 
     if (flowfile.getAttribute("incremenent") != null){
-      initialCount ++;
-      session.remove(flowfile);
-      return;
+      return FlowFileFilter.FlowFileFilterResult.ACCEPT_AND_CONTINUE;
     }
-
 
     if (initialCount <= 0){
       initialCount = 0;
-
-      session.transfer(flowfile,WAITING);
-
-      return;
+      return FlowFileFilter.FlowFileFilterResult.REJECT_AND_CONTINUE;
     }
 
-    else {
-      initialCount --;
-      session.transfer(flowfile,SUCCESS);
+    return FlowFileFilter.FlowFileFilterResult.ACCEPT_AND_CONTINUE;
+  };
+
+  @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
+  {
+    final List<FlowFile> flowfiles = session.get(filter);
+
+    int numflowFiles = flowfiles.size();
+
+    for (int i = 0; i < numflowFiles;i++)
+    {
+      FlowFile flowfile = flowfiles.get(i);
+
+      if (flowfile == null)
+      {
+        continue;
+      }
+
+      if (flowfile.getAttribute("incremenent") != null){
+        initialCount ++;
+        continue;
+      }
+
+      if (initialCount <= 0)
+      {
+        initialCount = 0;
+        session.transfer(flowfile, WAITING);
+        continue;
+      }
+
+      else
+      {
+        initialCount--;
+        session.transfer(flowfile, SUCCESS);
+      }
+
     }
 
 
