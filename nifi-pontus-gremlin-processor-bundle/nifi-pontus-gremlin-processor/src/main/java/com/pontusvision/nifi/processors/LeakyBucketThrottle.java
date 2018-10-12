@@ -100,6 +100,8 @@ public class LeakyBucketThrottle extends AbstractProcessor
 
       if (flowfile.getAttribute("incremenent") != null){
         initialCount ++;
+        session.remove(flowfile);
+
         continue;
       }
 
