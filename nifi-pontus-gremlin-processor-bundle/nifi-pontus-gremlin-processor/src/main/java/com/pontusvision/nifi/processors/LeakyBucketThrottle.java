@@ -77,6 +77,7 @@ public class LeakyBucketThrottle extends AbstractProcessor
       return FlowFileFilter.FlowFileFilterResult.REJECT_AND_CONTINUE;
     }
 
+    initialCount --;
     return FlowFileFilter.FlowFileFilterResult.ACCEPT_AND_CONTINUE;
   };
 
@@ -112,7 +113,7 @@ public class LeakyBucketThrottle extends AbstractProcessor
       //
       //      else
       //      {
-      initialCount--;
+//      initialCount--;
       session.transfer(flowfile, SUCCESS);
       //      }
 
