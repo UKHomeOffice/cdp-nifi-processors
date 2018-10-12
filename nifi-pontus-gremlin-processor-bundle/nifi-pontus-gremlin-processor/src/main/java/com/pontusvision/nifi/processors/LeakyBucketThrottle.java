@@ -19,7 +19,8 @@ import java.util.*;
 /**
  * @author Leo Martins
  */
-@TriggerSerially @Tags({ "Pontus","Throttle", "Leaky Bucket" }) @CapabilityDescription("Very basic leaky bucket throttling mechanism.")
+@TriggerSerially @Tags({ "Pontus", "Throttle",
+    "Leaky Bucket" }) @CapabilityDescription("Very basic leaky bucket throttling mechanism.")
 
 public class LeakyBucketThrottle extends AbstractProcessor
 {
@@ -30,16 +31,13 @@ public class LeakyBucketThrottle extends AbstractProcessor
 
   long initialCount = 100L;
 
-
-  final static PropertyDescriptor INITIAL_COUNT = new PropertyDescriptor.Builder()
-      .name("The initial message count)").defaultValue("100").required(false)
-      .addValidator(StandardValidators.NUMBER_VALIDATOR).build();
+  final static PropertyDescriptor INITIAL_COUNT = new PropertyDescriptor.Builder().name("The initial message count)")
+      .defaultValue("100").required(false).addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
   public static final Relationship SUCCESS = new Relationship.Builder().name("SUCCESS")
       .description("Success relationship").build();
   public static final Relationship WAITING = new Relationship.Builder().name("WAITING")
       .description("Waiting relationship; usually point this to yourself").build();
-
 
   @Override public void init(final ProcessorInitializationContext context)
   {
@@ -50,11 +48,10 @@ public class LeakyBucketThrottle extends AbstractProcessor
 
     Set<Relationship> relationships = new HashSet<>();
     relationships.add(SUCCESS);
-    relationships.add(WAITING);
+//    relationships.add(WAITING);
 
     this.relationships = Collections.unmodifiableSet(relationships);
   }
-
 
   @Override public void onPropertyModified(final PropertyDescriptor descriptor, final String oldValue,
                                            final String newValue)
@@ -65,17 +62,17 @@ public class LeakyBucketThrottle extends AbstractProcessor
       initialCount = Long.parseLong(newValue);
     }
 
-
-
   }
 
   FlowFileFilter filter = flowfile -> {
 
-    if (flowfile.getAttribute("incremenent") != null){
+    if (flowfile.getAttribute("increment") != null)
+    {
       return FlowFileFilter.FlowFileFilterResult.ACCEPT_AND_CONTINUE;
     }
 
-    if (initialCount <= 0){
+    if (initialCount <= 0)
+    {
       initialCount = 0;
       return FlowFileFilter.FlowFileFilterResult.REJECT_AND_CONTINUE;
     }
@@ -89,7 +86,7 @@ public class LeakyBucketThrottle extends AbstractProcessor
 
     int numflowFiles = flowfiles.size();
 
-    for (int i = 0; i < numflowFiles;i++)
+    for (int i = 0; i < numflowFiles; i++)
     {
       FlowFile flowfile = flowfiles.get(i);
 
@@ -98,28 +95,28 @@ public class LeakyBucketThrottle extends AbstractProcessor
         continue;
       }
 
-      if (flowfile.getAttribute("incremenent") != null){
-        initialCount ++;
+      if (flowfile.getAttribute("increment") != null)
+      {
+        initialCount++;
         session.remove(flowfile);
 
         continue;
       }
 
-      if (initialCount <= 0)
-      {
-        initialCount = 0;
-        session.transfer(flowfile, WAITING);
-        continue;
-      }
-
-      else
-      {
-        initialCount--;
-        session.transfer(flowfile, SUCCESS);
-      }
+      //      if (initialCount <= 0)
+      //      {
+      //        initialCount = 0;
+      //        session.transfer(flowfile, WAITING);
+      //        continue;
+      //      }
+      //
+      //      else
+      //      {
+      initialCount--;
+      session.transfer(flowfile, SUCCESS);
+      //      }
 
     }
-
 
   }
 
