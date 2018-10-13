@@ -54,11 +54,6 @@ public class LeakyBucketThrottleControllerService extends AbstractControllerServ
   }
 
 
-  @Override public String getIdentifier()
-  {
-    return null;
-  }
-
   @Override public List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
     return Collections.singletonList(INITIAL_COUNT);
