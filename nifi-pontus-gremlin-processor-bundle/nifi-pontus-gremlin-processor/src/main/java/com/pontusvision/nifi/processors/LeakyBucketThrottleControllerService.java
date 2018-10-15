@@ -64,16 +64,18 @@ public class LeakyBucketThrottleControllerService extends AbstractControllerServ
     lock = new ReentrantLock();
     cond = lock.newCondition();
 
+    counter = initCounter;
+
   }
 
   @Override public void shutdown()
   {
-    if (lock.tryLock())
-    {
-      counter = initCounter;
-      cond.signalAll();
-      lock.unlock();
-    }
+//    if (lock.tryLock())
+//    {
+//      counter = initCounter;
+//      cond.signalAll();
+//      lock.unlock();
+//    }
 
   }
 
