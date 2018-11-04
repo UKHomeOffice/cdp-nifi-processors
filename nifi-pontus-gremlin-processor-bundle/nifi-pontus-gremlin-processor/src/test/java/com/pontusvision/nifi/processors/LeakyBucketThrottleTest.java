@@ -5,6 +5,7 @@
  */
 package com.pontusvision.nifi.processors;
 
+import org.apache.nifi.reporting.InitializationException;
 import org.apache.nifi.util.MockFlowFile;
 import org.apache.nifi.util.TestRunner;
 import org.apache.nifi.util.TestRunners;
@@ -27,7 +28,7 @@ public class LeakyBucketThrottleTest
   /**
    * Test of onTrigger method, of class JsonProcessor.
    */
-  @org.junit.Test public void testOnTrigger() throws IOException
+  @org.junit.Test public void testOnTrigger() throws IOException, InitializationException
   {
     // Content to be mock a json file
     InputStream header = new ByteArrayInputStream("header1,header2\n".getBytes());
@@ -35,12 +36,26 @@ public class LeakyBucketThrottleTest
     // Generate a test runner to mock a processor in a flow
     LeakyBucketThrottle throttle = new LeakyBucketThrottle();
     TestRunner runner = TestRunners.newTestRunner(throttle);
-    runner.setIncomingConnection(true);
-    runner.addConnection(LeakyBucketThrottle.WAITING);
+    TestRunner runner2 = TestRunners.newTestRunner(throttle);
+
+//    runner.setIncomingConnection(true);
+//    runner.addConnection(LeakyBucketThrottle.WAITING);
 
 
+    LeakyBucketThrottleControllerServiceInterface service = new LeakyBucketThrottleControllerService();
+
+    Map<String, String> controllerSvcProps = new HashMap<>();
+    controllerSvcProps.put(LeakyBucketThrottleControllerServiceInterface.INITIAL_COUNT_STR,"5");
+
+
+    runner.addControllerService("LeakyBucketControllerSvc", service, controllerSvcProps);
+    runner2.addControllerService("LeakyBucketControllerSvc", service, controllerSvcProps);
     // Add properties
-    runner.setProperty(LeakyBucketThrottle.INITIAL_COUNT, "5");
+    runner.setProperty(LeakyBucketThrottle.LEAKY_BUCKET_CONTROLLER_SERVICE_STR, "LeakyBucketControllerSvc" );
+    runner2.setProperty(LeakyBucketThrottle.LEAKY_BUCKET_CONTROLLER_SERVICE_STR, "LeakyBucketControllerSvc" );
+
+    runner.setProperty(LeakyBucketThrottle.LEAKY_BUCKET_IS_NOTIFIER_STR,"false");
+    runner2.setProperty(LeakyBucketThrottle.LEAKY_BUCKET_IS_NOTIFIER_STR,"true");
 
     Map<String, String> attribs = new HashMap<>();
     attribs.put("incremenent", "1");
@@ -48,7 +63,7 @@ public class LeakyBucketThrottleTest
     runner.enqueue(header);
     runner.enqueue(header);
     runner.enqueue(header);
-    runner.enqueue(header, attribs);
+    runner2.enqueue(header, attribs);
     runner.enqueue(header);
     runner.enqueue(header);
     runner.enqueue(header);
@@ -56,21 +71,21 @@ public class LeakyBucketThrottleTest
     runner.enqueue(header);
 
     // Run the enqueued content, it also takes an int = number of contents queued
-    runner.run(1);
-    runner.run(1);
     runner.run(3);
+    runner2.run(1);
+    runner.run(2);
     List<MockFlowFile> headerResults = runner.getFlowFilesForRelationship(LeakyBucketThrottle.SUCCESS);
     assertTrue("4 flow files, because one was swallowed up", headerResults.size() == 4);
     assertTrue(
         "Count is two because we added one increment message, which did not contribute to the down count, and added one extra.",
-        throttle.initialCount == 2);
+        throttle.service.getCounter() == 2);
 
     runner.run(2);
 
 
     assertTrue(
         "Count is zero because we ran 2 more messages.",
-        throttle.initialCount == 0);
+        throttle.service.getCounter() == 0);
 
 
     assertTrue(
@@ -80,11 +95,11 @@ public class LeakyBucketThrottleTest
     runner.run(4,false, false,5000);
 
 
-    headerResults = runner.getFlowFilesForRelationship(LeakyBucketThrottle.WAITING);
-
-    assertTrue(
-        "Waiting Queue size is still two because we haven't had any more messages arriving to increment the counter.",
-        headerResults.size() == 2);
+//    headerResults = runner.getFlowFilesForRelationship(LeakyBucketThrottle.WAITING);
+//
+//    assertTrue(
+//        "Waiting Queue size is still two because we haven't had any more messages arriving to increment the counter.",
+//        headerResults.size() == 2);
 
 
 
