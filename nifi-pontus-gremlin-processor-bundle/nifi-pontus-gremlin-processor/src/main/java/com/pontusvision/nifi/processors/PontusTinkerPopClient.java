@@ -5,8 +5,12 @@
  */
 package com.pontusvision.nifi.processors;
 
+import com.fasterxml.uuid.EthernetAddress;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.impl.TimeBasedGenerator;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -15,9 +19,8 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.nifi.annotation.behavior.*;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
-import org.apache.nifi.annotation.lifecycle.OnScheduled;
+import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.PropertyDescriptor;
-import org.apache.nifi.components.PropertyValue;
 import org.apache.nifi.components.ValidationResult;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.logging.ComponentLog;
@@ -44,14 +47,13 @@ import org.janusgraph.core.JanusGraphFactory;
 import org.janusgraph.diskstorage.configuration.backend.CommonsConfiguration;
 import org.javatuples.Pair;
 
+import javax.annotation.Nullable;
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -128,6 +130,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
       //            .identifiesControllerService(HBaseClientService.class)
       .build();
 
+  public static final PropertyDescriptor WAITING_TIME = new PropertyDescriptor.Builder().name("ClientTimeoutInSeconds")
+      .description("Specifies client timeout (in seconds) waiting for a remote Gremlin query response.").required(true)
+      .defaultValue("20").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
+
+  protected int timeoutInSecs = 20;
+
+  final MessageTextSerializer messageTextSerializer = new GraphSONMessageSerializerV3d0();
+
   //    static final Pattern COLUMNS_PATTERN = Pattern.compile("\\w+(:\\w+)?(?:,\\w+(:\\w+)?)*");
 
   //    static final PropertyDescriptor COLUMNS = new PropertyDescriptor.Builder()
@@ -179,9 +189,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
   String aliasStr = "g1";
   Client client = null;
 
+  EthernetAddress addr = EthernetAddress.fromInterface();
+  TimeBasedGenerator uuidGen = Generators.timeBasedGenerator(addr);
+
   Boolean useEmbeddedServer = null;
   ServerGremlinExecutor embeddedServer = null;
-  Cluster cluster = null;
+
+  static ClusterClientService clusterClientService;
+  //  Cluster cluster = null;
   Set<Relationship> relationships = new HashSet<>();
 
   Settings settings;
@@ -197,9 +212,11 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   protected void handleError(Throwable e, FlowFile flowFile, ProcessSession session, ProcessContext context)
   {
+
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
     //    session.transfer(flowFile, REL_FAILURE);
 
+    closeClient("Error");
     if (flowFile != null)
     {
       flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
@@ -220,14 +237,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
       {
         if (cause.getCause() instanceof TimeoutException)
         {
-          parseProps(context);
+          createClient(confFileURI, useEmbeddedServer);
         }
         else if (cause.getCause() instanceof RuntimeException)
         {
           cause = cause.getCause();
           if (cause.getCause() instanceof TimeoutException)
           {
-            parseProps(context);
+            createClient(confFileURI, useEmbeddedServer);
           }
 
         }
@@ -246,32 +263,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
     return relationships;
   }
 
-  //    @Override
-  //    protected Collection<ValidationResult> customValidate(ValidationContext validationContext) {
-  ////        final String columns = validationContext.getProperty(COLUMNS).getValue();
-  //
-  //        final List<ValidationResult> problems = new ArrayList<>();
-  //
-  ////        if (StringUtils.isBlank(columns)) {
-  ////            problems.add(new ValidationResult.Builder()
-  ////                    .valid(false)
-  ////                    .explanation("a filter expression can not be used in conjunction with the Columns property")
-  ////                    .build());
-  ////        }
-  //
-  //
-  //
-  //        return problems;
-  //    }
-
   @Override protected List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
     final List<PropertyDescriptor> properties = new ArrayList<>();
     properties.add(PONTUS_GRAPH_EMBEDDED_SERVER);
     properties.add(TINKERPOP_CLIENT_CONF_FILE_URI);
     properties.add(TINKERPOP_QUERY_STR);
-    properties.add(TINKERPOP_ALIAS);
-
+    properties.add(WAITING_TIME);
     properties.add(TINKERPOP_QUERY_PARAM_PREFIX);
     return properties;
   }
@@ -281,16 +279,17 @@ public class PontusTinkerPopClient extends AbstractProcessor
   {
     if (descriptor.equals(PONTUS_GRAPH_EMBEDDED_SERVER))
     {
-      embeddedServer = null;
-      useEmbeddedServer = null;
+      useEmbeddedServer = Boolean.parseBoolean(newValue);
     }
     else if (descriptor.equals(TINKERPOP_CLIENT_CONF_FILE_URI))
     {
-      confFileURI = null;
+      confFileURI = newValue;
+      //      cluster = null;
+
     }
     else if (descriptor.equals(TINKERPOP_QUERY_STR))
     {
-      queryStr = null;
+      queryStr = newValue;
     }
     else if (descriptor.equals(TINKERPOP_QUERY_PARAM_PREFIX))
     {
@@ -298,8 +297,14 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
     else if (descriptor.equals(TINKERPOP_ALIAS))
     {
-      aliasStr = null;
+      aliasStr = newValue;
     }
+    else if (descriptor.equals(WAITING_TIME))
+    {
+      timeoutInSecs = Integer.parseInt(newValue);
+    }
+
+    createClient(confFileURI, useEmbeddedServer);
 
   }
 
@@ -400,8 +405,15 @@ public class PontusTinkerPopClient extends AbstractProcessor
               + "(" + Pattern.quote(INDEX_DIRECTORY.getName()) + "|" + Pattern.quote(INDEX_CONF_FILE.getName()) + ")"
               + ")");
 
-      final Iterator<String> keysToMangle = Iterators
-          .filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
+      //final Iterator<String> keysToMangle = Iterators
+      //.filter(configuration.getKeys(), key -> null != key && p.matcher(key).matches());
+      final Iterator<String> keysToMangle = Iterators.filter(configuration.getKeys(), new Predicate<String>()
+      {
+        @Override public boolean apply(@Nullable String key)
+        {
+          return ((null != key) && p.matcher((CharSequence) key).matches());
+        }
+      });
 
       while (keysToMangle.hasNext())
       {
@@ -456,32 +468,41 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  @OnScheduled public void parseProps(final ProcessContext context) throws IOException
+  public void createClient(String confFileURI, Boolean useEmbeddedServer)
   {
-
-    final ComponentLog log = this.getLogger();
-
-    if (useEmbeddedServer == null)
+    if (confFileURI == null || useEmbeddedServer == null)
     {
-      useEmbeddedServer = context.getProperty(PONTUS_GRAPH_EMBEDDED_SERVER).asBoolean();
-
+      return;
     }
-
-    if (queryStr == null)
+    if (StringUtils.isEmpty(confFileURI))
     {
-      queryStr = context.getProperty(TINKERPOP_QUERY_STR).getValue();
-    }
-    if (aliasStr == null)
-    {
-      aliasStr = context.getProperty(TINKERPOP_ALIAS).getValue();
-    }
-    if (confFileURI == null)
-    {
-      PropertyValue confFileURIProp = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI);
-      confFileURI = confFileURIProp.getValue();
-
-      if (StringUtils.isEmpty(confFileURI))
+      try
       {
+        setDefaultConfigs();
+      }
+      catch (Exception e2)
+      {
+        final ComponentLog log = this.getLogger();
+
+        log.error("Failed set Default URL config", e2);
+        return;
+      }
+    }
+    else
+    {
+      try
+      {
+        if (useEmbeddedServer)
+        {
+          createEmbeddedServer();
+        }
+      }
+      catch (Exception e)
+      {
+        final ComponentLog log = this.getLogger();
+
+        log.warn("Failed to read URL config; using default values", e);
+
         try
         {
           setDefaultConfigs();
@@ -492,63 +513,24 @@ public class PontusTinkerPopClient extends AbstractProcessor
           return;
         }
       }
-      else
-      {
-        try
-        {
-          if (useEmbeddedServer)
-          {
-            createEmbeddedServer();
-          }
-        }
-        catch (Exception e)
-        {
-          log.warn("Failed to read URL config; using default values", e);
-
-          try
-          {
-            setDefaultConfigs();
-          }
-          catch (Exception e2)
-          {
-            log.error("Failed set Default URL config", e2);
-            return;
-          }
-        }
-      }
-      if (client != null)
-      {
-        client.close();
-      }
-      if (cluster != null)
-      {
-        cluster.close();
-      }
-
-      if (!useEmbeddedServer)
-      {
-
-        try
-        {
-          URI uri = new URI(confFileURI);
-
-          cluster = Cluster.build(new File(uri)).create();
-
-          //            Cluster.open(conf);
-
-          Client unaliasedClient = cluster.connect();
-          client = unaliasedClient; //.alias(aliasStr);
-
-        }
-        catch (URISyntaxException e)
-        {
-          log.error("Failed create client with  URI config " + confFileURI, e);
-          return;
-
-        }
-      }
     }
 
+    if (!useEmbeddedServer)
+    {
+
+      try
+      {
+        createClient();
+      }
+      catch (Exception e)
+      {
+        final ComponentLog log = this.getLogger();
+
+        log.error("Failed create client with  URI config " + confFileURI, e);
+        return;
+
+      }
+    }
   }
 
   protected void configureSerializers()
@@ -617,6 +599,118 @@ public class PontusTinkerPopClient extends AbstractProcessor
     }
   }
 
+  public void checkGraphStatus()
+      throws FileNotFoundException, URISyntaxException, ExecutionException, InterruptedException
+  {
+
+    if (!useEmbeddedServer)
+    {
+      if (this.clusterClientService == null)
+      {
+        createClient();
+      }
+      if (this.client == null)
+      {
+        createClient();
+      }
+
+      Cluster localCluster = (this.clusterClientService.getCluster());
+      if (localCluster == null)
+      {
+        closeClient("Recover from failure");
+
+        createClient();
+      }
+      Client localClient = this.clusterClientService.getClient();
+      if (localClient == null)
+      {
+        closeClient("Recover from failure");
+        createClient();
+      }
+
+      if (this.client.isClosing())
+      {
+        closeClient("Recover from failure");
+        createClient();
+      }
+
+
+
+    }
+
+  }
+
+  public synchronized void createClient()
+      throws URISyntaxException, FileNotFoundException, ExecutionException, InterruptedException
+  {
+    if (!useEmbeddedServer)
+    {
+
+      if (clusterClientService == null)
+      {
+        clusterClientService = new ClusterClientServiceImpl(confFileURI);
+      }
+
+      if (client == null || (client != null && client.isClosing()))
+      {
+        client = clusterClientService.createClient();
+      }
+
+      if (client == null)
+      {
+        clusterClientService = new ClusterClientServiceImpl(confFileURI);
+        client = clusterClientService.createClient();
+
+
+      }
+
+      //
+      //
+      //      if (client != null)
+      //      {
+      //        client.closeAsync();
+      //      }
+      //      if (cluster == null || (cluster != null && (cluster.isClosed() )) )
+      //      {
+      //        //        cluster.close();
+      //
+      //        URI uri = new URI(confFileURI);
+      //
+      //        cluster = Cluster.build(new File(uri)).create();
+      //      }
+      //
+      //      client = cluster.connect();
+      //      client.init();
+
+    }
+
+  }
+
+  public void closeClient(String reason)
+  {
+
+    if (!useEmbeddedServer)
+    {
+      getLogger().info("Closing remote graph client - reason: " + reason);
+
+      if (this.clusterClientService != null)
+      {
+        this.clusterClientService.close(reason);
+      }
+
+      //      if (cluster != null)
+      //      {
+      //        cluster.close();
+      //      }
+
+    }
+  }
+
+  @OnStopped public void stopped()
+  {
+    closeClient("stopped");
+  }
+
   public Bindings getBindings(FlowFile flowfile)
   {
     Map<String, String> allAttribs = flowfile.getAttributes();
@@ -640,6 +734,41 @@ public class PontusTinkerPopClient extends AbstractProcessor
     return queryStr;
   }
 
+  public byte[] getBytesFromResultSet (ResultSet res)
+  {
+
+    CompletableFuture<List<Result>> resFuture = res.all();
+
+    if (resFuture.isCompletedExceptionally())
+    {
+      resFuture.exceptionally((Throwable throwable) -> {
+        getLogger().error(
+            "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
+        throw new ProcessException(throwable);
+      }).join();
+
+    }
+    try
+    {
+      final List<String> list = resFuture.get().stream()
+          .map(result -> result.getString()).collect(Collectors.toList());
+
+      final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
+          .code(ResponseStatusCode.SUCCESS).result(list).create();
+
+      String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
+      byte[] bytes = responseAsString.getBytes(UTF8.getJavaName());
+      return Unpooled.wrappedBuffer(bytes).array();
+    }
+    catch (Exception ex)
+    {
+      getLogger().warn(String.format("Error: " + ex));
+      throw new ProcessException(ex);
+    }
+
+
+
+  }
   public byte[] runQuery(Bindings bindings, String queryString)
       throws ExecutionException, InterruptedException, IOException, URISyntaxException
   {
@@ -657,13 +786,13 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       final CompletableFuture<Object> evalFuture = gremlinExecutor
           .eval(queryString, null, bindings, FunctionUtils.wrapFunction(o -> {
-            final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID())
+            final ResponseMessage responseMessage = ResponseMessage.build(uuidGen.generate())
                 .code(ResponseStatusCode.SUCCESS).result(IteratorUtils.asList(o)).create();
 
             try
             {
-              return Unpooled
-                  .wrappedBuffer(serializer.serializeResponseAsString(responseMessage).getBytes(UTF8.getJavaName()));
+              return Unpooled.wrappedBuffer(
+                  serializer.serializeResponseAsString(responseMessage).getBytes(Charset.defaultCharset()));
             }
             catch (Exception ex)
             {
@@ -700,37 +829,10 @@ public class PontusTinkerPopClient extends AbstractProcessor
     else
     {
       Map<String, Object> props = new HashMap<>(bindings);
-      getLogger().debug("Custer client : queryString ---> " + queryString + ", bindings ---> " + props);
+      //      getLogger().debug("Custer client : queryString ---> " + queryString + ", bindings ---> " + props);
       ResultSet res = client.submit(queryString, props);
 
-      CompletableFuture<List<Result>> resFuture = res.all();
-
-      if (resFuture.isCompletedExceptionally())
-      {
-        resFuture.exceptionally((Throwable throwable) -> {
-          getLogger().error(
-              "Server Error " + throwable.getMessage() + " orig msg: " + res.getOriginalRequestMessage().toString());
-          throw new ProcessException(throwable);
-        }).join();
-
-      }
-      final List<String> list = resFuture.get().stream().map(result -> result.getString()).collect(Collectors.toList());
-
-      final ResponseMessage responseMessage = ResponseMessage.build(UUID.randomUUID()).code(ResponseStatusCode.SUCCESS)
-          .result(list).create();
-      try
-      {
-
-        final MessageTextSerializer messageTextSerializer = new GraphSONMessageSerializerV3d0();
-        String responseAsString = messageTextSerializer.serializeResponseAsString(responseMessage);
-        byte[] bytes = responseAsString.getBytes(UTF8.getJavaName());
-        return Unpooled.wrappedBuffer(bytes).array();
-      }
-      catch (Exception ex)
-      {
-        getLogger().warn(String.format("Custer client : Error during serialization for " + responseMessage), ex);
-        throw new RuntimeException(ex);
-      }
+      return getBytesFromResultSet(res);
     }
 
     return new byte[0];
@@ -747,9 +849,11 @@ public class PontusTinkerPopClient extends AbstractProcessor
       final FlowFile flowfile = session.get();
       if (flowfile == null)
       {
-        log.error("Got a NULL flow file");
+        //        log.error("Got a NULL flow file");
         return;
       }
+
+      checkGraphStatus();
 
       final Bindings bindings = getBindings(flowfile);
 
@@ -767,8 +871,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       session.transfer(localFlowFile, REL_SUCCESS);
 
-      return;
-
     }
     catch (Throwable e)
     {
@@ -778,11 +880,12 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
   }
 
-  private String getStackTrace(Throwable e)
+  protected String getStackTrace(Throwable e)
   {
     StringWriter sw = new StringWriter();
     PrintWriter pw = new PrintWriter(sw);
     e.printStackTrace(pw);
     return sw.toString();
   }
+
 }

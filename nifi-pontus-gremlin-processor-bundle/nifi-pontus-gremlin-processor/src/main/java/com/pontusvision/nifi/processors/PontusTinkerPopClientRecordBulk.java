@@ -7,7 +7,6 @@ import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.exception.ProcessException;
-import org.apache.nifi.processor.io.StreamCallback;
 import org.apache.nifi.serialization.RecordReader;
 import org.apache.nifi.serialization.RecordReaderFactory;
 import org.apache.nifi.serialization.record.Record;
@@ -16,9 +15,6 @@ import org.apache.nifi.serialization.record.RecordSchema;
 import org.apache.tinkerpop.gremlin.driver.ResultSet;
 
 import javax.script.Bindings;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -59,7 +55,6 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
     final RecordReaderFactory readerFactory = context.getProperty(RECORD_READER)
         .asControllerService(RecordReaderFactory.class);
 
-    final Map<String, String> attributes = new HashMap<>();
     final AtomicInteger recordCount = new AtomicInteger();
 
     final List<String> reqUUIDs = new LinkedList<>();
@@ -72,110 +67,85 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
 
     final FlowFile original = flowFile;
     final Map<String, String> originalAttributes = flowFile.getAttributes();
-    attributes.putAll(originalAttributes);
+    final Map<String, String> attributes = new HashMap<>(originalAttributes);
 
     try
     {
       final FlowFile tempFlowFile = flowFile;
+      checkGraphStatus();
 
-      flowFile = session.write(flowFile, new StreamCallback()
-      {
-        @Override public void process(final InputStream in, final OutputStream out) throws IOException
+      flowFile = session.write(flowFile, (in, out) -> {
+
+        try (final RecordReader reader = readerFactory.createRecordReader(original, in, getLogger()))
         {
 
-          //                    try (final RecordReader reader = readerFactory.createRecordReader(originalAttributes, in, getLogger())) {
-          try (final RecordReader reader = readerFactory.createRecordReader(original, in, getLogger()))
+          final RecordSchema rSchema = reader.getSchema();
+
+          List<RecordField> fields = rSchema.getFields();
+
+          Record record;
+
+          List<CompletableFuture<ResultSet>> resSets = new LinkedList<>();
+          int resetLen = queryAttribPrefixStr.length();
+          StringBuilder sb = new StringBuilder(queryAttribPrefixStr);
+          List<Map<String, String>> bulkLoad = new ArrayList<>();
+
+          int count = 0;
+          while ((record = reader.nextRecord()) != null)
           {
+            Map<String, String> tinkerpopAttribs = new HashMap<>(fields.size() + tinkerpopFlowFileAttribs.size());
 
-            final RecordSchema rSchema = reader.getSchema();
-
-            List<RecordField> fields = rSchema.getFields();
-
-            Record record;
-
-            List<CompletableFuture<ResultSet>> resSets = new LinkedList<>();
-            int resetLen = queryAttribPrefixStr.length();
-            StringBuilder sb = new StringBuilder(queryAttribPrefixStr);
-            List<Map<String, String>> bulkLoad = new ArrayList<>();
-
-            int count = 0;
-            while ((record = reader.nextRecord()) != null)
+            for (int i = 0, ilen = fields.size(); i < ilen; i++)
             {
-              Map<String, String> tinkerpopAttribs = new HashMap<>(fields.size() + tinkerpopFlowFileAttribs.size());
+              RecordField recordField = fields.get(i);
 
-              for (int i = 0, ilen = fields.size(); i < ilen; i++)
-              {
-                RecordField recordField = fields.get(i);
+              String fieldName = recordField.getFieldName();
 
-                String fieldName = recordField.getFieldName();
-
-                Object fieldVal = record.getValue(recordField);
-                sb.setLength(resetLen);
-                sb.append(fieldName);
-                tinkerpopAttribs.put(sb.toString(), fieldVal != null? fieldVal.toString(): null);
-              }
-
-              // enables us to override any...
-              tinkerpopAttribs.putAll(tinkerpopFlowFileAttribs);
-              bulkLoad.add(tinkerpopAttribs);
-              count++;
-
+              Object fieldVal = record.getValue(recordField);
+              sb.setLength(resetLen);
+              sb.append(fieldName);
+              tinkerpopAttribs.put(sb.toString(), fieldVal != null? fieldVal.toString(): null);
             }
 
-            Map<String, Object> bulkLoadAttr = new HashMap<>();
-            bulkLoadAttr.put("listOfMaps", bulkLoad);
-
-            Bindings bindings = getBindings(tempFlowFile);
-
-            bindings.putAll(bulkLoadAttr);
-
-            String queryString = getQueryStr(session);
-
-            runQuery(bindings,queryString);
-
-//
-//            ResultSet resSet = client.submit(queryStr, bulkLoadAttr);
-//            CompletableFuture<List<Result>> results = resSet.all();
-//
-//            if (results.isCompletedExceptionally())
-//            {
-//              results.exceptionally((Throwable throwable) -> {
-//                getLogger().error(
-//                    "Server Error " + throwable.getMessage() + " orig msg: " + resSet.getOriginalRequestMessage()
-//                        .toString());
-//                //                                    session.transfer(tempFlowFile, REL_FAILURE);
-//
-//                throw new ProcessException(throwable);
-//              }).join();
-//
-//            }
-//            List<Result> allRes = resSet.all().get();
-
-            recordCount.set(count);
-
-//            reqUUIDs.add(resSet.getOriginalRequestMessage().toString());
+            // override any record attribs from the GUI.
+            tinkerpopAttribs.putAll(tinkerpopFlowFileAttribs);
+            bulkLoad.add(tinkerpopAttribs);
+            count++;
 
           }
-          catch (final CompletionException | ProcessException pe)
-          {
-            throw pe;
-          }
-          catch (final Throwable e)
-          {
-            throw new ProcessException("Could not process incoming data", e);
-          }
+
+          Map<String, Object> bulkLoadAttr = new HashMap<>();
+          bulkLoadAttr.put("listOfMaps", bulkLoad);
+
+          Bindings bindings = getBindings(tempFlowFile);
+
+          bindings.putAll(bulkLoadAttr);
+
+          String queryString = getQueryStr(session);
+
+          byte[] res = runQuery(bindings, queryString);
+          FlowFile localFlowFile = session.create();
+          localFlowFile = session.putAllAttributes(localFlowFile, attributes);
+
+          localFlowFile = session.write(localFlowFile, out2 -> out2.write(res));
+
+
+          session.transfer(localFlowFile, REL_SUCCESS);
+
+          recordCount.set(count);
+
+
+        }
+        catch (final CompletionException | ProcessException pe)
+        {
+          throw pe;
+        }
+        catch (final Throwable e)
+        {
+          throw new ProcessException("Could not process incoming data", e);
         }
       });
-      attributes.put("reqUUIDs", reqUUIDs.toString());
-//      attributes.put("processed.record.count", String.valueOf(reqUUIDs.size()));
-      attributes.put("requested.record.count", String.valueOf(recordCount.get()));
-
-      FlowFile localFlowFile = original;
-      localFlowFile = session.putAllAttributes(localFlowFile, attributes);
-      session.transfer(localFlowFile, REL_SUCCESS);
-
-
-
+      session.remove(original);
 
     }
     catch (final Exception e)
