@@ -32,7 +32,6 @@ public class WaitAndBatch extends AbstractProcessor
   long waitTimeInSeconds = 120;
   int numMessagesToRead = 1000000;
 
-  LeakyBucketThrottleControllerServiceInterface service = null;
 
   public final static String WAIT_TIME_IN_SECONDS_TXT = "Wait Time In Seconds";
   public static PropertyDescriptor WAIT_TIME_IN_SECONDS = new PropertyDescriptor.Builder()
@@ -111,15 +110,37 @@ public class WaitAndBatch extends AbstractProcessor
     {
        // ignore
     }
-    List<FlowFile> flowfiles = session.get(numMessagesToRead);
+    List<FlowFile> superset = new ArrayList<>(numMessagesToRead);
+    List<FlowFile> flowfiles;
 
-    if (flowfiles == null)
+    do
     {
-      return;
-    }
+      flowfiles = session.get(numMessagesToRead);
+
+      if (flowfiles == null)
+      {
+        return;
+      }
+
+      superset.addAll(flowfiles);
+      
+
+    }while (!flowfiles.isEmpty() && superset.size() < numMessagesToRead);
+
+//    for (int i = 0, ilen = flowfiles.size(); i< ilen; i++){
+//      FlowFile flowfile = flowfiles.get(i);
+//
+//      if (flowfile == null)
+//      {
+//        continue;
+//      }
+//
+//
+//      session.transfer(flowfile,SUCCESS);
+//    }
 
 
-    session.transfer(flowfiles,SUCCESS);
+    session.transfer(superset,SUCCESS);
 
 
 

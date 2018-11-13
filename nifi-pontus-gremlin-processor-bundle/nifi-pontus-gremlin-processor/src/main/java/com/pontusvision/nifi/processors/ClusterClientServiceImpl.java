@@ -57,7 +57,6 @@ class ClusterClientServiceImpl implements ClusterClientService
     {
       if (this.cluster == null)
       {
-
         cluster = Cluster.build(new File(new URI(clientYaml))).create();
         cluster.init();
 
