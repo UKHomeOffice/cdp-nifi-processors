@@ -192,7 +192,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   EthernetAddress addr = EthernetAddress.fromInterface();
   TimeBasedGenerator uuidGen = Generators.timeBasedGenerator(addr);
 
-  Boolean useEmbeddedServer = null;
+  Boolean useEmbeddedServer = true;
   ServerGremlinExecutor embeddedServer = null;
 
   static ClusterClientService clusterClientService;
