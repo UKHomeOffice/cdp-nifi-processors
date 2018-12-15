@@ -58,8 +58,24 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       .addValidator(StandardValidators.URI_VALIDATOR)
       .identifiesControllerService(PontusTinkerpopControllerServiceInterface.class).build();
 
+  public static final PropertyDescriptor RETRY_COUNT= new PropertyDescriptor.Builder().name("Retry Count")
+      .description("Number of times a failed query will be re-tried.  Zero means no retries.").required(true)
+      .defaultValue("0").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
+
+  public static final PropertyDescriptor RETRY_MIN_DELAY_MS= new PropertyDescriptor.Builder().name("Retry Min Delay")
+      .description("Minimum delay in ms between retries.  The first retry will sleep for this amount, doubling up to the maximum delay.").required(true)
+      .defaultValue("0").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
+
+  public static final PropertyDescriptor RETRY_MAX_DELAY_MS= new PropertyDescriptor.Builder().name("ClientTimeoutInSeconds")
+      .description("Maximum delay in ms between retries.").required(true)
+      .defaultValue("10").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
   PontusTinkerpopControllerServiceInterface service = null;
+
+  protected int retryCount = 5;
+  protected int retryMinDelayMs = 0;
+  protected int retryMaxDelayMs = 10;
+
   public PontusTinkerPopRemoteClient()
   {
     relationships.add(REL_FAILURE);
@@ -74,6 +90,9 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     properties.add(TINKERPOP_QUERY_STR);
     properties.add(WAITING_TIME);
     properties.add(TINKERPOP_QUERY_PARAM_PREFIX);
+    properties.add(RETRY_COUNT);
+    properties.add(RETRY_MIN_DELAY_MS);
+    properties.add(RETRY_MAX_DELAY_MS);
     return properties;
   }
 
@@ -96,6 +115,18 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     {
       service = null;
     }
+    else if (descriptor.equals(RETRY_COUNT))
+    {
+      retryCount = Integer.parseInt(newValue);
+    }
+    else if (descriptor.equals(RETRY_MIN_DELAY_MS))
+    {
+      retryMinDelayMs = Integer.parseInt(newValue);
+    }
+    else if (descriptor.equals(RETRY_MAX_DELAY_MS))
+    {
+      retryMaxDelayMs = Integer.parseInt(newValue);
+    }
 
   }
 
@@ -116,6 +147,21 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
   }
 
+  public static long sleep (long sleepTime, long maxTime)
+  {
+    long nextSleep = Math.min(sleepTime * 2, maxTime);
+
+    try
+    {
+      Thread.sleep(sleepTime);
+    }
+    catch (Throwable t)
+    {
+      // ignore
+    }
+
+    return maxTime;
+  }
 
 
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
@@ -148,10 +194,30 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
+      byte[] res = null;
+      int counter = 0;
+      long sleepMs = retryMinDelayMs;
+      do
+      {
+        counter ++;
 
-      byte[] res = runQuery(bindings, queryString);
+        try
+        {
+          res = runQuery(bindings, queryString);
+        }
+        catch (Throwable t)
+        {
+          if (counter > retryCount)
+          {
+            throw t;
+          }
 
-      localFlowFile = session.write(localFlowFile, out -> out.write(res));
+          sleepMs = sleep(sleepMs, retryMaxDelayMs);
+        }
+      }while ( counter <= retryCount);
+
+      final byte [] finalRes = res;
+      localFlowFile = session.write(localFlowFile, out -> out.write(finalRes));
 
       session.transfer(localFlowFile, REL_SUCCESS);
 
