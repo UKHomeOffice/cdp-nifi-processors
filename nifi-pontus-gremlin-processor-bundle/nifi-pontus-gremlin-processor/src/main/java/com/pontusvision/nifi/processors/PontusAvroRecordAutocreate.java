@@ -12,6 +12,7 @@ import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.logging.ComponentLog;
+import org.apache.nifi.processor.AbstractProcessor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.exception.ProcessException;
@@ -32,7 +33,7 @@ import java.util.Map;
 
 @EventDriven @SupportsBatching @InputRequirement(InputRequirement.Requirement.INPUT_REQUIRED)
 
-@WritesAttributes({ @WritesAttribute(attribute = "reqUUID", description = "UUID from the query"),
+  @WritesAttributes({ @WritesAttribute(attribute = "reqUUID", description = "UUID from the query"),
     @WritesAttribute(attribute = "pontus.id.type", description = "The type of UUID (NEW, EXISTING)"),
     @WritesAttribute(attribute = "pontus.match.status", description = "The status associated with the record "
         + "(MATCH, POTENTIAL_MATCH, MULTIPLE, MERGE, NO_MATCH) ") })
@@ -48,7 +49,7 @@ import java.util.Map;
         + "variables tp_userID1, tp_userName1, tp_userID2, tp_userName2, tp_userLang2, tp_relId1, tp_relWeight1 would all be taken from the "
         + "flowfile attributes that start with the prefix set in the tinkerpop query parameter prefix (e.g. tp_).")
 
-public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
+public class PontusAvroRecordAutocreate extends AbstractProcessor
 {
 
   final static String TINKERPOP_CLIENT_CONTROLLER_SERVICE_STR = "Tinkerpop Client Controller Service";
@@ -58,25 +59,9 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       .addValidator(StandardValidators.URI_VALIDATOR)
       .identifiesControllerService(PontusTinkerpopControllerServiceInterface.class).build();
 
-  public static final PropertyDescriptor RETRY_COUNT= new PropertyDescriptor.Builder().name("Retry Count")
-      .description("Number of times a failed query will be re-tried.  Zero means no retries.").required(true)
-      .defaultValue("0").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
-
-  public static final PropertyDescriptor RETRY_MIN_DELAY_MS= new PropertyDescriptor.Builder().name("Retry Min Delay")
-      .description("Minimum delay in ms between retries.  The first retry will sleep for this amount, doubling up to the maximum delay.").required(true)
-      .defaultValue("0").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
-
-  public static final PropertyDescriptor RETRY_MAX_DELAY_MS= new PropertyDescriptor.Builder().name("ClientTimeoutInSeconds")
-      .description("Maximum delay in ms between retries.").required(true)
-      .defaultValue("10").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
   PontusTinkerpopControllerServiceInterface service = null;
-
-  protected int retryCount = 5;
-  protected int retryMinDelayMs = 0;
-  protected int retryMaxDelayMs = 10;
-
-  public PontusTinkerPopRemoteClient()
+  public PontusAvroRecordAutocreate()
   {
     relationships.add(REL_FAILURE);
     relationships.add(REL_SUCCESS);
@@ -90,9 +75,6 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     properties.add(TINKERPOP_QUERY_STR);
     properties.add(WAITING_TIME);
     properties.add(TINKERPOP_QUERY_PARAM_PREFIX);
-    properties.add(RETRY_COUNT);
-    properties.add(RETRY_MIN_DELAY_MS);
-    properties.add(RETRY_MAX_DELAY_MS);
     return properties;
   }
 
@@ -115,18 +97,6 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     {
       service = null;
     }
-    else if (descriptor.equals(RETRY_COUNT))
-    {
-      retryCount = Integer.parseInt(newValue);
-    }
-    else if (descriptor.equals(RETRY_MIN_DELAY_MS))
-    {
-      retryMinDelayMs = Integer.parseInt(newValue);
-    }
-    else if (descriptor.equals(RETRY_MAX_DELAY_MS))
-    {
-      retryMaxDelayMs = Integer.parseInt(newValue);
-    }
 
   }
 
@@ -147,21 +117,6 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
   }
 
-  public static long sleep (long sleepTime, long maxTime)
-  {
-    long nextSleep = Math.min(sleepTime * 2, maxTime);
-
-    try
-    {
-      Thread.sleep(sleepTime);
-    }
-    catch (Throwable t)
-    {
-      // ignore
-    }
-
-    return maxTime;
-  }
 
 
   @Override public void onTrigger(final ProcessContext context, final ProcessSession session) throws ProcessException
@@ -194,30 +149,10 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
-      byte[] res = null;
-      int counter = 0;
-      long sleepMs = retryMinDelayMs;
-      do
-      {
-        counter ++;
 
-        try
-        {
-          res = runQuery(bindings, queryString);
-        }
-        catch (Throwable t)
-        {
-          if (counter > retryCount)
-          {
-            throw t;
-          }
+      byte[] res = runQuery(bindings, queryString);
 
-          sleepMs = sleep(sleepMs, retryMaxDelayMs);
-        }
-      }while ( counter <= retryCount);
-
-      final byte [] finalRes = res;
-      localFlowFile = session.write(localFlowFile, out -> out.write(finalRes));
+      localFlowFile = session.write(localFlowFile, out -> out.write(res));
 
       session.transfer(localFlowFile, REL_SUCCESS);
 

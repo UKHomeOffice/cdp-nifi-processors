@@ -134,6 +134,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
       .description("Specifies client timeout (in seconds) waiting for a remote Gremlin query response.").required(true)
       .defaultValue("20").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
+
   protected int timeoutInSecs = 20;
 
   final MessageTextSerializer messageTextSerializer = new GraphSONMessageSerializerV3d0();
