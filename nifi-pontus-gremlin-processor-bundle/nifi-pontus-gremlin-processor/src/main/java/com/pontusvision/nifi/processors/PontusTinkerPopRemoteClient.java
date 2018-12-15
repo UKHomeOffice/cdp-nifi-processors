@@ -66,7 +66,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       .description("Minimum delay in ms between retries.  The first retry will sleep for this amount, doubling up to the maximum delay.").required(true)
       .defaultValue("0").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
-  public static final PropertyDescriptor RETRY_MAX_DELAY_MS= new PropertyDescriptor.Builder().name("ClientTimeoutInSeconds")
+  public static final PropertyDescriptor RETRY_MAX_DELAY_MS= new PropertyDescriptor.Builder().name("Retry Max Delay")
       .description("Maximum delay in ms between retries.").required(true)
       .defaultValue("10").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
