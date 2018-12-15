@@ -169,6 +169,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
     final ComponentLog log = this.getLogger();
     FlowFile localFlowFile = null;
+    int counter = 0;
 
     try
     {
@@ -195,7 +196,6 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       localFlowFile = session.create();
       localFlowFile = session.putAllAttributes(localFlowFile, allAttribs);
       byte[] res = null;
-      int counter = 0;
       long sleepMs = retryMinDelayMs;
       do
       {
@@ -207,6 +207,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
         }
         catch (Throwable t)
         {
+          log.warn("Tinkerpop - retryCounter = {}; Retrying query  {}", new Object[] {counter,queryString} );
           if (counter > retryCount)
           {
             throw t;
@@ -225,7 +226,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     catch (Throwable e)
     {
       handleError(e, localFlowFile, session, context);
-      log.error("Failed to run query against Tinkerpop; error: {}", e);
+      log.error("Failed to run query against Tinkerpop; counter = "+ counter + " error: {}", e);
     }
 
   }
