@@ -160,7 +160,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       // ignore
     }
 
-    return maxTime;
+    return nextSleep;
   }
 
 
