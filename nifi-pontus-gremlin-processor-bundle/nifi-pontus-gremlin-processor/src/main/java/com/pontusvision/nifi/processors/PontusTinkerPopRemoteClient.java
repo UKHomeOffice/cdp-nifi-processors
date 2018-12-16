@@ -188,6 +188,8 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
       final Bindings bindings = getBindings(flowfile);
 
+      bindings.put("pg_lastErrorStr", "");
+      bindings.put("pg_retryCounter", counter);
       Map<String, String> allAttribs = flowfile.getAttributes();
       session.remove(flowfile);
 
@@ -204,10 +206,14 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
         try
         {
           res = runQuery(bindings, queryString);
+          break;
         }
         catch (Throwable t)
         {
           log.warn("Tinkerpop - retryCounter = {}; Retrying query  {}", new Object[] {counter,queryString} );
+          bindings.put("pg_lastErrorStr", t.getMessage());
+          bindings.put("pg_retryCounter", counter);
+
           if (counter > retryCount)
           {
             throw t;
@@ -236,7 +242,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     getLogger().error("Failed to process {}; will route to failure", new Object[] { flowFile, e });
     //    session.transfer(flowFile, REL_FAILURE);
 
-    //    closeClient("Error");
+//    closeClient("Error");
     if (flowFile != null)
     {
       flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
@@ -250,31 +256,31 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       ff = session.putAttribute(ff, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
       session.transfer(ff, REL_FAILURE);
     }
-    //    Throwable cause = e.getCause();
-    //    if (cause instanceof RuntimeException)
-    //    {
-    //      try
-    //      {
-    //        if (cause.getCause() instanceof TimeoutException)
-    //        {
-    //          createClient(confFileURI, useEmbeddedServer);
-    //        }
-    //        else if (cause.getCause() instanceof RuntimeException)
-    //        {
-    //          cause = cause.getCause();
-    //          if (cause.getCause() instanceof TimeoutException)
-    //          {
-    //            createClient(confFileURI, useEmbeddedServer);
-    //          }
-    //
-    //        }
-    //      }
-    //      catch (Throwable t)
-    //      {
-    //        getLogger().error("Failed to reconnect {}", new Object[] { t });
-    //
-    //      }
-    //    }
+//    Throwable cause = e.getCause();
+//    if (cause instanceof RuntimeException)
+//    {
+//      try
+//      {
+//        if (cause.getCause() instanceof TimeoutException)
+//        {
+//          createClient(confFileURI, useEmbeddedServer);
+//        }
+//        else if (cause.getCause() instanceof RuntimeException)
+//        {
+//          cause = cause.getCause();
+//          if (cause.getCause() instanceof TimeoutException)
+//          {
+//            createClient(confFileURI, useEmbeddedServer);
+//          }
+//
+//        }
+//      }
+//      catch (Throwable t)
+//      {
+//        getLogger().error("Failed to reconnect {}", new Object[] { t });
+//
+//      }
+//    }
   }
 
 }
