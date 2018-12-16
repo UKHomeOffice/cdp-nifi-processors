@@ -204,6 +204,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
         try
         {
           res = runQuery(bindings, queryString);
+          break;
         }
         catch (Throwable t)
         {
