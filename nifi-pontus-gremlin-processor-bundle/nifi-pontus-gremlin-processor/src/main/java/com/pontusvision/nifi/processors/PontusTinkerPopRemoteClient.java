@@ -188,6 +188,8 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
 
       final Bindings bindings = getBindings(flowfile);
 
+      bindings.put("pg_lastErrorStr", "");
+      bindings.put("pg_retryCounter", counter);
       Map<String, String> allAttribs = flowfile.getAttributes();
       session.remove(flowfile);
 
@@ -209,6 +211,9 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
         catch (Throwable t)
         {
           log.warn("Tinkerpop - retryCounter = {}; Retrying query  {}", new Object[] {counter,queryString} );
+          bindings.put("pg_lastErrorStr", t.getMessage());
+          bindings.put("pg_retryCounter", counter);
+
           if (counter > retryCount)
           {
             throw t;
