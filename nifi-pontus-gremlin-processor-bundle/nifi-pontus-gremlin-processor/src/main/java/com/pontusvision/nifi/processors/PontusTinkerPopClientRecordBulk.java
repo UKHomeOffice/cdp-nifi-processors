@@ -117,7 +117,7 @@ public class PontusTinkerPopClientRecordBulk extends PontusTinkerPopClientRecord
           Map<String, Object> bulkLoadAttr = new HashMap<>();
           bulkLoadAttr.put("listOfMaps", bulkLoad);
 
-          Bindings bindings = getBindings(tempFlowFile);
+          Bindings bindings = getBindings(tempFlowFile, context,session);
 
           bindings.putAll(bulkLoadAttr);
 

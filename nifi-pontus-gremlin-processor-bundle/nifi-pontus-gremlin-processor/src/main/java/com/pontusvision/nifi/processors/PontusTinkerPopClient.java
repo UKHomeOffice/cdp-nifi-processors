@@ -134,7 +134,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
       .description("Specifies client timeout (in seconds) waiting for a remote Gremlin query response.").required(true)
       .defaultValue("20").addValidator(StandardValidators.NUMBER_VALIDATOR).build();
 
-
   protected int timeoutInSecs = 20;
 
   final MessageTextSerializer messageTextSerializer = new GraphSONMessageSerializerV3d0();
@@ -712,13 +711,17 @@ public class PontusTinkerPopClient extends AbstractProcessor
     closeClient("stopped");
   }
 
-  public Bindings getBindings(FlowFile flowfile)
+  public Bindings getBindings(FlowFile flowfile,final ProcessContext context, final ProcessSession session)
   {
     Map<String, String> allAttribs = flowfile.getAttributes();
 
     Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
         .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    tinkerpopAttribs.putIfAbsent("pg_lastErrorStr","");
+    tinkerpopAttribs.putIfAbsent("pg_nifiContext", context);
+    tinkerpopAttribs.putIfAbsent("pg_nifiSession", session);
 
     final Bindings bindings = new SimpleBindings(tinkerpopAttribs);
 
@@ -856,7 +859,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       checkGraphStatus();
 
-      final Bindings bindings = getBindings(flowfile);
+      final Bindings bindings = getBindings(flowfile, context, session);
 
       Map<String, String> allAttribs = flowfile.getAttributes();
       session.remove(flowfile);
