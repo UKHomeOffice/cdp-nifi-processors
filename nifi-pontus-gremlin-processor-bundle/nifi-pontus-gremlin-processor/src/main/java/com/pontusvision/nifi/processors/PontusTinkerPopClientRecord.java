@@ -119,7 +119,7 @@ public class PontusTinkerPopClientRecord extends PontusTinkerPopClient
             // enables us to override any attribs from the record with ones from upstream...
             tinkerpopAttribs.putAll(tinkerpopFlowFileAttribs);
 
-            Bindings bindings = getBindings(tempFlowFile);
+            Bindings bindings = getBindings(tempFlowFile,context,session);
             bindings.putAll(tinkerpopAttribs);
 
 

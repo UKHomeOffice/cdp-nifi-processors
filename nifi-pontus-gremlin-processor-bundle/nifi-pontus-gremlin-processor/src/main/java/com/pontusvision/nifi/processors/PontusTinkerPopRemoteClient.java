@@ -186,9 +186,8 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       }
 
 
-      final Bindings bindings = getBindings(flowfile);
+      final Bindings bindings = getBindings(flowfile,context, session);
 
-      bindings.put("pg_lastErrorStr", "");
       bindings.put("pg_retryCounter", counter);
       Map<String, String> allAttribs = flowfile.getAttributes();
       session.remove(flowfile);
@@ -247,6 +246,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
     {
       flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error", e.getMessage());
       flowFile = session.putAttribute(flowFile, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
+      flowFile = session.putAttribute(flowFile, "pg_lastErrorStr", e.getMessage());
       session.transfer(flowFile, REL_FAILURE);
     }
     else
@@ -254,6 +254,8 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       FlowFile ff = session.create();
       ff = session.putAttribute(ff, "PontusTinkerPopClient.error", e.getMessage());
       ff = session.putAttribute(ff, "PontusTinkerPopClient.error.stacktrace", getStackTrace(e));
+      ff = session.putAttribute(ff, "pg_lastErrorStr", e.getMessage());
+
       session.transfer(ff, REL_FAILURE);
     }
 //    Throwable cause = e.getCause();
