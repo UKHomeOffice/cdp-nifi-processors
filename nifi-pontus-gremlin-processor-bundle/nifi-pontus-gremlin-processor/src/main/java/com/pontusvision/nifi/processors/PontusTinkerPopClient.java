@@ -711,7 +711,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
     closeClient("stopped");
   }
 
-  public Bindings getBindings(FlowFile flowfile,final ProcessContext context, final ProcessSession session)
+  public Bindings getBindings(FlowFile flowfile)
   {
     Map<String, String> allAttribs = flowfile.getAttributes();
 
@@ -720,8 +720,6 @@ public class PontusTinkerPopClient extends AbstractProcessor
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     tinkerpopAttribs.putIfAbsent("pg_lastErrorStr","");
-    tinkerpopAttribs.putIfAbsent("pg_nifiContext", context);
-    tinkerpopAttribs.putIfAbsent("pg_nifiSession", session);
 
     final Bindings bindings = new SimpleBindings(tinkerpopAttribs);
 
@@ -859,7 +857,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
 
       checkGraphStatus();
 
-      final Bindings bindings = getBindings(flowfile, context, session);
+      final Bindings bindings = getBindings(flowfile);
 
       Map<String, String> allAttribs = flowfile.getAttributes();
       session.remove(flowfile);

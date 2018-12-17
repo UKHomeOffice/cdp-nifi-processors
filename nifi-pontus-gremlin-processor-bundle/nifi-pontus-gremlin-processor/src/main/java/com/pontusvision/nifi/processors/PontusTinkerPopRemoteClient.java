@@ -186,7 +186,7 @@ public class PontusTinkerPopRemoteClient extends PontusTinkerPopClient
       }
 
 
-      final Bindings bindings = getBindings(flowfile,context, session);
+      final Bindings bindings = getBindings(flowfile);
 
       bindings.put("pg_retryCounter", counter);
       Map<String, String> allAttribs = flowfile.getAttributes();
