@@ -29,6 +29,16 @@
 
     <dependencies>
         <!-- provided dependency so we can compile against the service API -->
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-schema-registry-service-api</artifactId>
+            <version>${nifi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-registry-service</artifactId>
+            <version>${nifi.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>com.github.scribejava</groupId>
@@ -173,6 +183,11 @@
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi</artifactId>
+            <version>${nifi.version}</version>
         </dependency>
 
 

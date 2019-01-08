@@ -39,6 +39,15 @@
         <module>nifi-pontus-gremlin-processor-nar</module>
     </modules>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-standard-services-api-nar</artifactId>
+            <type>nar</type>
+            <version>${nifi.version}</version>
+        </dependency>
+
+    </dependencies>
     <build>
         <plugins>
             <plugin>

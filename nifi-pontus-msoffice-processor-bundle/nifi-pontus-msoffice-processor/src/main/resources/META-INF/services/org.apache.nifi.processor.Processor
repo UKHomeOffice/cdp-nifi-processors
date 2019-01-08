@@ -1,1 +1,2 @@
 com.pontusvision.nifi.processors.PontusMSOfficePSTReaderRecord
+com.pontusvision.nifi.processors.PontusMSOfficeTextExtractor

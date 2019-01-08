@@ -16,6 +16,7 @@
  */
 package com.pontusvision.nifi.processors;
 
+import com.github.scribejava.apis.MicrosoftAzureActiveDirectory20Api;
 import com.github.scribejava.core.builder.ServiceBuilder;
 import com.github.scribejava.core.builder.api.DefaultApi20;
 import com.github.scribejava.core.oauth.OAuth20Service;
@@ -26,7 +27,6 @@ import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
-import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.reporting.InitializationException;
 
 import java.io.IOException;
@@ -34,34 +34,34 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Tags({ "Pontus", "Oauth2", "Service",
-    "Openid" }) @CapabilityDescription("Tinkerpop Service.") public class PontusOauth20ControllerService
+@Tags({ "Pontus", "OAuth2", "Service",
+    "Openid" }) @CapabilityDescription("OAuth2 Service.") public class PontusOauth20ControllerService
     extends AbstractControllerService implements PontusOauth20ControllerServiceInterface
 {
-
-  final static PropertyDescriptor TINKERPOP_CLIENT_CONF_FILE_URI = new PropertyDescriptor.Builder()
-      .name("Tinkerpop Client configuration URI").description(
-          "Specifies the configuration file to configure this connection to tinkerpop (if embedded, this is the gremlin-server.yml file).")
-      .required(false).addValidator(StandardValidators.URI_VALIDATOR).build();
 
   private static final List<PropertyDescriptor> properties;
 
   static
   {
     final List<PropertyDescriptor> props = new ArrayList<>();
-    props.add(TINKERPOP_CLIENT_CONF_FILE_URI);
+    props.add(OAUTH2_CLIENT_ID);
+    props.add(OAUTH2_CLIENT_SECRET);
+    props.add(OAUTH2_CLIENT_API_KEY);
+
+    props.add(OAUTH2_CALLBACK_URL);
+    props.add(OAUTH2_CLIENT_API);
+
     properties = Collections.unmodifiableList(props);
   }
 
-  final String clientId = "your client id";
-  final String clientApiKey = "your key";
-  final String clientSecret = "your client secret";
-  final String callbackURLStr = "https://www.example.com/callback";
-  DefaultApi20 clientApi = null;
+  String clientId = "your client id";
+  String clientApiKey = "your key";
+  String clientSecret = "your client secret";
+  String callbackURLStr = "https://www.example.com/callback";
+  String clientApiClassStr = "";
+  DefaultApi20 clientApi = MicrosoftAzureActiveDirectory20Api.instance();
 
   public OAuth20Service oAuth20Service;
-
-  public String uriStr = null;
 
   @Override public List<PropertyDescriptor> getSupportedPropertyDescriptors()
   {
@@ -74,14 +74,25 @@ import java.util.List;
    */
   @OnEnabled public void onEnabled(final ConfigurationContext context) throws InitializationException
   {
-    uriStr = context.getProperty(TINKERPOP_CLIENT_CONF_FILE_URI).getValue();
+    callbackURLStr = context.getProperty(OAUTH2_CALLBACK_URL).getValue();
+    clientId = context.getProperty(OAUTH2_CLIENT_ID).getValue();
+    clientApiKey = context.getProperty(OAUTH2_CLIENT_API_KEY).getValue();
+    clientSecret = context.getProperty(OAUTH2_CLIENT_SECRET).getValue();
+    clientApiClassStr = context.getProperty(OAUTH2_CLIENT_API).getValue();
+
+    try
+    {
+      clientApi = PontusOauth20ControllerServiceInterface.loadAPIfromClassString(clientApiClassStr);
+    }
+    catch (Throwable t)
+    {
+      throw new InitializationException(t);
+    }
 
     try
     {
       oAuth20Service = new ServiceBuilder(clientId).apiKey(clientApiKey).apiSecret(clientSecret)
           .callback(callbackURLStr).build(clientApi);
-
-
 
     }
     catch (Throwable t)
