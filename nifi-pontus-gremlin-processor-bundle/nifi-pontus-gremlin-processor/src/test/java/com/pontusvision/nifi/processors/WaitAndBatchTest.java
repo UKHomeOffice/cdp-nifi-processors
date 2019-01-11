@@ -40,8 +40,8 @@ public class WaitAndBatchTest
 
     // Add properties
 
-    runner.setProperty(WaitAndBatch.NUM_MESSAGES_TO_READ_TXT,"3");
     runner.setProperty(WaitAndBatch.WAIT_TIME_IN_SECONDS_TXT,"5");
+    runner.setProperty(WaitAndBatch.NUM_MESSAGES_TO_READ_TXT,"3");
 
 
     // Add the content to the runner
