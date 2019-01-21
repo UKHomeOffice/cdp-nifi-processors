@@ -192,7 +192,7 @@ public class PontusTinkerPopClient extends AbstractProcessor
   EthernetAddress addr = EthernetAddress.fromInterface();
   TimeBasedGenerator uuidGen = Generators.timeBasedGenerator(addr);
 
-  Boolean useEmbeddedServer = null;
+  Boolean useEmbeddedServer = true;
   ServerGremlinExecutor embeddedServer = null;
 
   static ClusterClientService clusterClientService;
@@ -718,6 +718,8 @@ public class PontusTinkerPopClient extends AbstractProcessor
     Map<String, Object> tinkerpopAttribs = allAttribs.entrySet().stream()
         .filter((entry -> entry.getKey().startsWith(queryAttribPrefixStr)))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+    tinkerpopAttribs.putIfAbsent("pg_lastErrorStr","");
 
     final Bindings bindings = new SimpleBindings(tinkerpopAttribs);
 
